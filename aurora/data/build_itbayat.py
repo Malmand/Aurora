@@ -62,12 +62,15 @@ def main(argv=None) -> int:
         df.to_parquet(paths.LOAD_REAL)
         status["load"] = f"real logs {a.load} -> {paths.LOAD_REAL.name}"
     else:
-        temp, tsrc = None, "none"
-        for name, p in (("ERA5", rawio.ERA5), ("NASA POWER", rawio.NASA_POWER)):
-            if p.exists():
-                temp, tsrc = pd.read_parquet(p, columns=["temp_c"])["temp_c"], name
-                break
-        end = temp.index.max() if temp is not None else pd.Timestamp.now(tz="UTC").floor("D")
+        # ERA5 temperature only: it agrees with the PAGASA Basco normals (+0.6 degC);
+        # NASA POWER (MERRA-2) runs +1.9 degC warm and is not used downstream.
+        if not rawio.ERA5.exists():
+            status["load"] = "MISSING ERA5 temperature: synthetic load not rebuilt"
+            temp = None
+        else:
+            temp, tsrc = pd.read_parquet(rawio.ERA5, columns=["temp_c"])["temp_c"], "ERA5"
+    if not a.load and temp is not None:
+        end = temp.index.max()
         idx = pd.date_range(pd.Timestamp("2015-01-01", tz=paths.LOCAL_TZ).tz_convert("UTC"), end, freq="h")
         df = synthetic_load(idx, temp, s)
         df.attrs["temperature_input"] = tsrc

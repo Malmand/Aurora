@@ -62,7 +62,7 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 
 ## Synthetic load
 
-`load_synthetic_hourly.parquet` is **synthetic**. No hourly measured load for Itbayat is public. Its shape parameters (`load_model` in `site.yaml`) and the critical-load ratings are `ASSUMPTION`s. The series is scaled so that the peak of the reference year (2024) equals `peak_demand_kw`. Growth (+12 % since 2021, about 3.9 %/yr) is applied up to 2024 and held flat after it, so peaks in 2025-2026 move only with weather and noise (256 and 260 kW in the current build). The 2024 load factor is 0.60 (1,306 MWh/yr). Check that against the INL annual energy once it is read. Daily-mean temperature comes from ERA5, or from NASA POWER (MERRA-2) while ERA5 is not downloaded; the parquet's metadata records which. Real plant logs replace it with `python -m aurora.data.build_itbayat --load <file>`.
+`load_synthetic_hourly.parquet` is **synthetic**. No hourly measured load for Itbayat is public. Its shape parameters (`load_model` in `site.yaml`) and the critical-load ratings are `ASSUMPTION`s. The series is scaled so that the peak of the reference year (2024) equals `peak_demand_kw`. Growth (+12 % since 2021, about 3.9 %/yr) is applied up to 2024 and held flat after it, so peaks in 2025-2026 move only with weather and noise (256 and 260 kW in the current build). The 2024 load factor is 0.60 (1,306 MWh/yr). Check that against the INL annual energy once it is read. Daily-mean temperature comes from ERA5 only: ERA5 agrees with the PAGASA Basco normals (+0.6 °C annual mean), while NASA POWER (MERRA-2) runs +1.9 °C warm and is not used downstream. Real plant logs replace it with `python -m aurora.data.build_itbayat --load <file>`.
 
 ## Value table
 

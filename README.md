@@ -10,8 +10,8 @@ This is Mohamed Al-Mandhari's individual development repository for the AURORA p
 
 | Phase | What | Status |
 |---|---|---|
-| 1 | Itbayat site data, weather, typhoon tracks, validation | In progress: pipeline and site values done; local download of raw_small/ pending |
-| 2 | Probabilistic solar and demand forecast (P10/P50/P90, 48 h) | Planned |
+| 1 | Itbayat site data, weather, typhoon tracks, validation | Done: inputs in `data/itbayat/raw_small/`, 18 site values verified, 4 still missing (see `SOURCES.md`) |
+| 2 | Probabilistic solar and demand forecast (P10/P50/P90, 48 h) | Next: NWP inputs downloaded (ECMWF from Feb 2024; GFS, ICON, JMA from 2022) |
 | 3 | Digital twin with MILP rolling-horizon MPC and CEST | Planned |
 | 4 | Year runs, real typhoon weeks, value of forecasting, sizing | Planned |
 | 5 | Figures, results summary, slide and video content | Planned |

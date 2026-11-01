@@ -220,7 +220,7 @@ def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FI
           f"SAPM open-rack cell temperature, {PV['losses_frac']*100:.0f} % DC losses, inverter efficiency "
           f"{PV['inv_eff']:.2f}, Hay-Davies transposition (pvlib). These are ASSUMPTIONs for a check, "
           "not the design array.", ""]
-    temp_src = prods.get("ERA5", prods.get("NASA POWER"))
+    temp_src = prods.get("ERA5")  # ERA5 temperature downstream (agrees with PAGASA; POWER runs warm)
     yields = {}
     if temp_src is not None:
         wind = prods["ERA5"]["wind_ms"] if "ERA5" in prods else None
@@ -231,7 +231,7 @@ def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FI
         for k, y in yields.items():
             L.append(f"| {k} | {y.mean():.0f} | {y.min():.0f} | {y.max():.0f} | {len(y)} |")
         L.append("")
-        tname = "ERA5" if "ERA5" in prods else "NASA POWER (MERRA-2)"
+        tname = "ERA5"
         L.append(f"Air temperature from {tname}; wind {'from ERA5' if wind is not None else 'fixed at 1 m/s (no ERA5)'}.")
         L.append("")
     cas = _ref_csv("castro2022_itbayat.csv")
