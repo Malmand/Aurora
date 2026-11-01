@@ -12,17 +12,13 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 
-from . import paths
+from . import paths, rawio
 from ..plotting import style
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 # PV system for the yield check (ASSUMPTION; Phase 2 fixes the real array)
 PV = dict(tilt=20.0, azimuth=180.0, gamma_pdc=-0.0037, losses_frac=0.14, inv_eff=0.96)
-
-
-def _read(path):
-    return pd.read_parquet(path) if path.exists() else None
 
 
 def full_years(df: pd.DataFrame) -> pd.DataFrame:
@@ -105,9 +101,9 @@ def _ref_csv(name):
 
 
 def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FIG_DIR / "validation_site"):
-    era5 = _read(paths.WEATHER_ERA5)
-    sat = _read(paths.WEATHER_SAT)
-    powr = _read(paths.WEATHER_POWER)
+    era5 = rawio.read(rawio.ERA5)
+    sat = rawio.read(rawio.SATELLITE)
+    powr = rawio.read(rawio.NASA_POWER)
     prods = {k: full_years(v) for k, v in {"ERA5": era5, "Satellite": sat, "NASA POWER": powr}.items()
              if v is not None}
     L = [f"# Site validation: Itbayat weather data",
@@ -120,7 +116,7 @@ def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FI
     L += ["## Data availability", "", "| Product | Status | Full years | Grid point |", "|---|---|---|---|"]
     for name, raw in (("ERA5", era5), ("Satellite", sat), ("NASA POWER", powr)):
         if raw is None:
-            L.append(f"| {name} | **not downloaded** (see build log) | - | - |")
+            L.append(f"| {name} | **not in raw_small/** (run scripts/download_itbayat.py) | - | - |")
         else:
             yrs = sorted(set(prods[name].index.tz_convert(paths.LOCAL_TZ).year))
             gp = (f"{raw.attrs.get('grid_latitude', paths.LAT)}, {raw.attrs.get('grid_longitude', paths.LON)}")

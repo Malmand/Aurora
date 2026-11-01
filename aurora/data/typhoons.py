@@ -3,6 +3,9 @@
 Source: Knapp et al. (2010), Bull. Amer. Meteor. Soc. 91, 363-376,
 doi:10.1175/2009BAMS2755.1; data: NOAA NCEI IBTrACS v04r01.
 
+Input: data/itbayat/raw_small/ibtracs_wp_tracks.parquet, written by
+scripts/download_itbayat.py. This module never downloads.
+
 Track fixes (3-hourly, some 6-hourly) are interpolated linearly to hourly
 positions. For each UTC hour we keep the nearest active storm and flag hours
 with a storm centre within 300 km and 500 km of the site.
@@ -14,8 +17,7 @@ import argparse
 import numpy as np
 import pandas as pd
 
-from . import paths
-from .http import download
+from . import paths, rawio
 
 IBTRACS_URL = ("https://www.ncei.noaa.gov/data/international-best-track-archive-for-"
                "climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.WP.list.v04r01.csv")
@@ -105,8 +107,10 @@ def events(hourly_tracks: pd.DataFrame, lat=paths.LAT, lon=paths.LON,
 
 
 def build(index: pd.DatetimeIndex | None = None, since: int = 2015):
-    raw = download(IBTRACS_URL, paths.RAW_DIR / "ibtracs.WP.list.v04r01.csv")
-    tracks = read_ibtracs(raw, since=since - 1)
+    if not rawio.IBTRACS.exists():
+        raise FileNotFoundError(f"{rawio.IBTRACS} missing: run scripts/download_itbayat.py --only ibtracs")
+    tracks = pd.read_parquet(rawio.IBTRACS).reset_index()
+    tracks = tracks[tracks["time"] >= pd.Timestamp(f"{since - 1}-01-01", tz="UTC")]
     hourly = to_hourly(tracks)
     if index is None:
         index = pd.date_range(pd.Timestamp(f"{since}-01-01", tz="UTC"), hourly["time"].max().floor("D"),

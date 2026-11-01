@@ -40,12 +40,13 @@ Project documents:
 - **TEAM_CASE** `aurora-gsc/aurora-digital-twin`, branch `digital-twin-case-study`, `case_batanes.py` (illustrative values, no external source).
 - **ASSUMPTION** No source. See the sensitivity range in the table.
 
-Datasets downloaded by `python -m aurora.data.build_itbayat`:
+Datasets downloaded by `scripts/download_itbayat.py` into `raw_small/` (provenance, request period, row counts and sha256 in `raw_small/MANIFEST.json`; the build reads only these files):
 
-- **ERA5** Hersbach, H. et al. (2020). The ERA5 global reanalysis. *Q. J. R. Meteorol. Soc.* 146, 1999-2049. doi:[10.1002/qj.3803](https://doi.org/10.1002/qj.3803). Accessed through the Open-Meteo historical weather API, https://open-meteo.com/en/docs/historical-weather-api (`models=era5`). Reanalysis, not a measurement.
+- **ERA5** Hersbach, H. et al. (2020). The ERA5 global reanalysis. *Q. J. R. Meteorol. Soc.* 146, 1999-2049. doi:[10.1002/qj.3803](https://doi.org/10.1002/qj.3803). Accessed through the Open-Meteo historical weather API, https://open-meteo.com/en/docs/historical-weather-api (`models=era5`), or with `--source cds` from the Copernicus Climate Data Store, https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels (grid point 20.75 N, 121.75 E; DNI derived as direct horizontal / cos zenith). The MANIFEST records which. Reanalysis, not a measurement.
 - **OM_SAT** Open-Meteo satellite radiation API, https://open-meteo.com/en/docs/satellite-radiation-api. The satellite product behind the Itbayat grid point is not yet recorded. [verify]
 - **NASA_POWER** NASA Langley Research Center, POWER Project, hourly API v2, https://power.larc.nasa.gov/ (radiation from CERES SYN1deg, meteorology from MERRA-2, per the API header).
 - **IBTRACS** Knapp, K. R., Kruk, M. C., Levinson, D. H., Diamond, H. J., Neumann, C. J. (2010). The International Best Track Archive for Climate Stewardship (IBTrACS). *Bull. Amer. Meteor. Soc.* 91, 363-376. doi:[10.1175/2009BAMS2755.1](https://doi.org/10.1175/2009BAMS2755.1). Data: NOAA NCEI IBTrACS v04r01, West Pacific list.
+- **OM_PREV** Open-Meteo previous-runs API, https://open-meteo.com/en/docs/previous-runs-api: archived ECMWF IFS 0.25°, GFS, ICON and JMA forecasts for lead days 0, 1 and 2 (Phase 2 inputs). The archive start date differs by model; the MANIFEST records the first available hour. [verify per model]
 - **PVLIB** Anderson, K. S. et al. (2023). pvlib python: 2023 project update. *J. Open Source Softw.* 8(92), 5994. doi:[10.21105/joss.05994](https://doi.org/10.21105/joss.05994).
 
 Event evidence for the problem slide only (news; not yet opened from the cloud session): Manila Bulletin Sep 2022, Rappler Jun 2023, GMA Apr 2026, Philstar May 2026, Asia Business Outlook Mar 2025, Yale Clean Energy Forum policy memo Jan 2026. Add each URL and access date here once read.
