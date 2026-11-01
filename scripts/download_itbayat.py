@@ -41,7 +41,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from aurora.data import paths, rawio  # noqa: E402
-from aurora.data.http import DownloadBlocked, download, get  # noqa: E402
+from aurora.data.http import DownloadBlocked, download, get, get_json  # noqa: E402
 
 ERA5_OM_URL = "https://archive-api.open-meteo.com/v1/archive"
 SAT_URL = "https://satellite-api.open-meteo.com/v1/archive"
@@ -118,7 +118,7 @@ def era5_open_meteo(start, end, manifest):
     grid = {}
 
     def fetch(a, b):
-        js = get(ERA5_OM_URL, om_params(a, b, rawio.ERA5_OM_VARS, models="era5"), timeout=300).json()
+        js = get_json(ERA5_OM_URL, om_params(a, b, rawio.ERA5_OM_VARS, models="era5"), timeout=300)
         grid.update(lat=js.get("latitude"), lon=js.get("longitude"), elev=js.get("elevation"))
         return rawio.om_hourly_to_frame(js["hourly"])
 
@@ -182,7 +182,7 @@ def satellite(start, end, manifest):
     grid = {}
 
     def fetch(a, b):
-        js = get(SAT_URL, om_params(a, b, rawio.SAT_OM_VARS), timeout=300).json()
+        js = get_json(SAT_URL, om_params(a, b, rawio.SAT_OM_VARS), timeout=300)
         grid.update(lat=js.get("latitude"), lon=js.get("longitude"))
         return rawio.om_hourly_to_frame(js["hourly"])
 
@@ -200,7 +200,7 @@ def power(start, end, manifest):
         p = {"parameters": ",".join(POWER_VARS), "community": "RE", "latitude": paths.LAT,
              "longitude": paths.LON, "start": a.strftime("%Y%m%d"), "end": b.strftime("%Y%m%d"),
              "format": "JSON", "time-standard": "UTC"}
-        js = get(POWER_URL, p, timeout=600).json()
+        js = get_json(POWER_URL, p, timeout=600)
         fill = js.get("header", {}).get("fill_value", -999.0)
         df = pd.DataFrame(js["properties"]["parameter"])
         df.index = pd.to_datetime(df.index, format="%Y%m%d%H", utc=True)
@@ -223,11 +223,11 @@ def nwp(start, end, manifest, models):
         print(f" NWP {key} ({name})")
 
         def fetch(a, b, name=name, variables=variables):
-            js = get(PREV_URL, om_params(a, b, variables, models=name), timeout=300).json()
+            js = get_json(PREV_URL, om_params(a, b, variables, models=name), timeout=300)
             return rawio.om_previous_runs_to_frame(js["hourly"])
 
         try:
-            df = pd.concat(cached(f"nwp_{key}", a, b, fetch) for a, b in chunks(start, end, 3))
+            df = pd.concat(cached(f"nwp_{key}", a, b, fetch) for a, b in chunks(start, end, 1))
         except DownloadBlocked as exc:
             print(f"  BLOCKED {key}: {exc}")
             manifest.setdefault("_errors", {})[f"previous_runs_{key}"] = str(exc)
@@ -268,7 +268,7 @@ def main(argv=None) -> int:
     start = dt.date.fromisoformat(a.start)
     end = dt.date.fromisoformat(a.end) if a.end else dt.date.today() - dt.timedelta(days=8)
 
-    manifest = json.loads(rawio.MANIFEST.read_text()) if rawio.MANIFEST.exists() else {}
+    manifest = json.loads(rawio.MANIFEST.read_text(encoding="utf-8")) if rawio.MANIFEST.exists() else {}
     manifest.pop("_errors", None)
     jobs = {
         "era5": lambda: (era5_cds if a.source == "cds" else era5_open_meteo)(start, end, manifest),
@@ -287,7 +287,7 @@ def main(argv=None) -> int:
             manifest.setdefault("_errors", {})[name] = str(exc)
             failed.append(name)
     rawio.RAW_SMALL.mkdir(parents=True, exist_ok=True)
-    rawio.MANIFEST.write_text(json.dumps(manifest, indent=2, default=str) + "\n")
+    rawio.MANIFEST.write_text(json.dumps(manifest, indent=2, default=str) + "\n", encoding="utf-8")
     print(f"\nManifest: {rawio.MANIFEST.relative_to(ROOT)}")
     if failed or manifest.get("_errors"):
         print("Incomplete:", ", ".join(sorted(set(failed) | set(manifest.get("_errors", {})))))

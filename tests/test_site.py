@@ -6,7 +6,7 @@ from aurora.data.site import check, load_site, value
 
 def test_every_value_sourced_or_flagged():
     site = load_site()
-    assert check(site, paths.SOURCES_MD.read_text()) == []
+    assert check(site, paths.SOURCES_MD.read_text(encoding="utf-8")) == []
 
 
 def test_missing_values_are_refused():

@@ -38,7 +38,7 @@ def main(argv=None) -> int:
     # 1. site values
     s = site_mod.load_site()
     site_mod.write_sources(s)
-    probs = site_mod.check(s, paths.SOURCES_MD.read_text())
+    probs = site_mod.check(s, paths.SOURCES_MD.read_text(encoding="utf-8"))
     if probs:
         print("site.yaml problems:\n  " + "\n  ".join(probs))
         return 1

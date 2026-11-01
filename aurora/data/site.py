@@ -15,7 +15,7 @@ END = "<!-- END VALUE TABLE -->"
 
 
 def load_site(path=paths.SITE_YAML) -> dict:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -71,12 +71,12 @@ def value_table(site: dict) -> str:
 
 
 def write_sources(site: dict, path=paths.SOURCES_MD) -> None:
-    text = path.read_text()
+    text = path.read_text(encoding="utf-8")
     if BEGIN not in text or END not in text:
         raise ValueError("SOURCES.md lacks the value-table markers")
     head, rest = text.split(BEGIN, 1)
     _, tail = rest.split(END, 1)
-    path.write_text(head + BEGIN + "\n\n" + value_table(site) + "\n\n" + END + tail)
+    path.write_text(head + BEGIN + "\n\n" + value_table(site) + "\n\n" + END + tail, encoding="utf-8")
 
 
 def main(argv=None):
@@ -86,7 +86,7 @@ def main(argv=None):
     site = load_site()
     if a.write_sources:
         write_sources(site)
-    probs = check(site, paths.SOURCES_MD.read_text())
+    probs = check(site, paths.SOURCES_MD.read_text(encoding="utf-8"))
     counts = {}
     for e in site["values"].values():
         counts[e["status"]] = counts.get(e["status"], 0) + 1

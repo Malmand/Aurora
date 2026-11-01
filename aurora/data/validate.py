@@ -257,7 +257,7 @@ def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FI
               "; PAGASA normals pending transcription."), ""]
 
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    out_md.write_text("\n".join(L) + "\n")
+    out_md.write_text("\n".join(L) + "\n", encoding="utf-8")
     return out_md
 
 

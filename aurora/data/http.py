@@ -46,6 +46,22 @@ def get(url: str, params: dict | None = None, timeout: float = 120,
     raise DownloadBlocked(f"{url} -> {last}")
 
 
+def get_json(url: str, params: dict | None = None, timeout: float = 120, retries: int = 4,
+             backoff: float = 4.0) -> dict:
+    """GET and parse JSON. A 200 response that is not JSON (empty body, HTML error page
+    from a gateway or timeout) is retried, then raised as DownloadBlocked with a snippet."""
+    last = None
+    for attempt in range(retries):
+        r = get(url, params, timeout=timeout)
+        try:
+            return r.json()
+        except ValueError:
+            body = r.text.strip().replace("\n", " ")[:200] or "<empty body>"
+            last = f"HTTP {r.status_code}, not JSON ({r.headers.get('content-type', '?')}): {body}"
+            time.sleep(backoff * 2 ** attempt)
+    raise DownloadBlocked(f"{url} -> {last}")
+
+
 def download(url: str, dest: Path, force: bool = False) -> Path:
     """Download url to dest once (cached)."""
     dest.parent.mkdir(parents=True, exist_ok=True)
