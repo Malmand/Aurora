@@ -1,0 +1,8 @@
+field,value,unit,where_in_dataset
+peak_load_kw,,kW,
+annual_load_mwh,,MWh/yr,
+diesel_capacity_kw,,kW,
+pv_kwp_optimal,,kWp,
+battery_kwh_optimal,,kWh,
+pv_specific_yield_kwh_per_kwp,,kWh/kWp/yr,
+ghi_kwh_m2_day,,kWh/m2/day,

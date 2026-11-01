@@ -4,3 +4,7 @@ __pycache__/
 .ipynb_checkpoints/
 data/raw/
 .env
+*.egg-info/
+.pytest_cache/
+# raw downloads (re-fetched by the build; large or third-party)
+data/itbayat/raw/

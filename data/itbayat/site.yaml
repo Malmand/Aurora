@@ -1,0 +1,140 @@
+# Itbayat site data: single source of truth for AURORA.
+# Every entry: value, unit, source (key in SOURCES.md), date (of the information),
+# confidence (high / medium / low), status:
+#   verified          checked in this repo against the primary document
+#   brief_unverified  taken from docs/CLOUD_BRIEF.md, which cites the primary source;
+#                     not yet checked against the document (host blocked from the
+#                     cloud session on 2026-11-01). Check before the deck.
+#   computed          derived by a script in this repo from a downloaded dataset
+#   ASSUMPTION        no source; needs a sensitivity run (range given)
+#   missing           not yet known; value is null and nothing downstream may use it
+# SOURCES.md's value table is generated from this file:
+#   python -m aurora.data.site --write-sources
+
+site:
+  name: Itbayat, Batanes, Philippines
+  timezone: Asia/Manila   # PHT, UTC+8, no daylight saving
+
+values:
+  # ---------------- location and people ----------------
+  latitude:
+    {value: 20.78, unit: deg N, source: BRIEF, date: null, confidence: medium, status: brief_unverified,
+     note: "Town centre. Open-Meteo snaps to its grid; the grid point used is stored in each weather parquet."}
+  longitude:
+    {value: 121.84, unit: deg E, source: BRIEF, date: null, confidence: medium, status: brief_unverified}
+  population:
+    {value: 3100, unit: persons, source: PHILATLAS, date: "[verify census year]", confidence: medium, status: brief_unverified,
+     note: "Brief says 'about 3,100'. Read exact census counts from PhilAtlas / PSA."}
+
+  # ---------------- diesel plant ----------------
+  diesel_installed_kw_doe:
+    {value: 1086, unit: kW, source: DOE_OFFGRID, date: "2021 per brief; file name says 2022-09-30 [verify]", confidence: medium, status: brief_unverified,
+     note: "1.086 MW installed. Recorded for comparison; not the current state."}
+  diesel_dependable_kw_doe:
+    {value: 790, unit: kW, source: DOE_OFFGRID, date: "2021 per brief [verify]", confidence: medium, status: brief_unverified}
+  diesel_units_inl:
+    {value: 4, unit: units, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified,
+     note: "Current state used by AURORA (brief, known problem 2)."}
+  diesel_combined_kw_inl:
+    {value: 660, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified}
+  diesel_out_of_service_kw_inl:
+    {value: 100, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified,
+     note: "One 100 kW unit out of service."}
+  diesel_available_kw:
+    {value: 560, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: computed,
+     note: "660 - 100 kW."}
+  diesel_unit_ratings_kw:
+    {value: null, unit: kW, source: INL2025, date: null, confidence: low, status: missing,
+     note: "Individual ratings of the four units: read from the INL report."}
+  diesel_min_loading_frac:
+    {value: 0.30, unit: fraction of unit rating, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.25, 0.40], note: "Typical genset minimum loading; replace with INL or NPC-SPUG figure."}
+
+  # ---------------- demand ----------------
+  peak_demand_kw:
+    {value: 250, unit: kW, source: INL2025, date: "2024 [verify reference year]", confidence: medium, status: brief_unverified}
+  peak_season:
+    {value: "May-July", unit: months, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified}
+  peak_growth_since_2021:
+    {value: 0.12, unit: fraction, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified,
+     note: "+12 % peak since 2021."}
+  annual_energy_mwh:
+    {value: null, unit: MWh/yr, source: INL2025, date: null, confidence: low, status: missing,
+     note: "Read from INL report; use to check the synthetic load's load factor."}
+
+  # ---------------- fuel ----------------
+  diesel_price_php_per_l:
+    {value: 113, unit: PHP/L, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified,
+     note: "Base case. The team case study used 65 PHP/L (known problem 1)."}
+  diesel_price_low_php_per_l:
+    {value: 65, unit: PHP/L, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     note: "Sensitivity low case (value used by the team case study, unsourced there)."}
+  diesel_price_high_php_per_l:
+    {value: 140, unit: PHP/L, source: BRIEF, date: null, confidence: low, status: ASSUMPTION,
+     note: "Sensitivity high case."}
+  fuel_supply_months_now:
+    {value: 2, unit: months, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified,
+     note: "'About 2 months' of supply with the current system."}
+  fuel_supply_months_with_inl_system:
+    {value: 3, unit: months, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified}
+  fuel_storage_l:
+    {value: null, unit: L, source: INL2025, date: null, confidence: low, status: missing,
+     note: "Tank capacity; read from INL report or NPC-SPUG. Needed for the Phase 3 fuel state."}
+  resupply_interval_days:
+    {value: null, unit: days, source: INL2025, date: null, confidence: low, status: missing}
+
+  # ---------------- grid ----------------
+  distribution_voltage_kv:
+    {value: null, unit: kV, source: INL2025, date: null, confidence: low, status: missing}
+
+  # ---------------- system sizes (both are run; brief known problem 3) ----------------
+  pv_kwp_inl:
+    {value: 300, unit: kWp, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified}
+  battery_kw_inl:
+    {value: 300, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified}
+  battery_kwh_inl:
+    {value: 300, unit: kWh, source: INL2025, date: 2025-01-30, confidence: medium, status: brief_unverified}
+  pv_kwp_case:
+    {value: 500, unit: kWp, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     note: "Illustrative size from the team case study."}
+  battery_kwh_case:
+    {value: 1500, unit: kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION}
+  cest_reserve_soc:
+    {value: 0.30, unit: fraction, source: BRIEF, date: null, confidence: medium, status: ASSUMPTION,
+     note: "CEST definition: SOC reserve floor. Design choice, not a site fact."}
+
+  # ---------------- critical loads (synthetic load model) ----------------
+  # No public measurements. Ratings are planning assumptions; Phase 4 runs +-50 %.
+  crit_clinic_kw:
+    {value: 15, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [7.5, 22.5]}
+  crit_water_kw:
+    {value: 20, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [10, 30]}
+  crit_telecom_kw:
+    {value: 5, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [2.5, 7.5]}
+  crit_municipal_kw:
+    {value: 10, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [5, 15]}
+  crit_cold_storage_kw:
+    {value: 15, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [7.5, 22.5]}
+
+# Shape parameters of the synthetic load (all ASSUMPTION, labelled synthetic).
+load_model:
+  status: ASSUMPTION
+  reference_year: 2024          # year whose peak equals peak_demand_kw [verify against INL]
+  # Relative hourly shape, local time 00..23. Island village with an evening lighting /
+  # cooking peak and a lower midday commercial plateau.
+  hourly_shape: [0.52, 0.48, 0.46, 0.45, 0.46, 0.52, 0.62, 0.68, 0.70, 0.71, 0.72, 0.73,
+                 0.72, 0.71, 0.70, 0.70, 0.73, 0.82, 0.96, 1.00, 0.97, 0.88, 0.74, 0.60]
+  seasonal_amplitude: 0.08      # +-8 % around the mean, peak at seasonal_peak_doy
+  seasonal_peak_doy: 166        # mid-June, inside May-July
+  temp_coeff_per_c: 0.015       # +1.5 % per degC of daily-mean temperature above its monthly normal
+  sunday_factor: 0.95
+  noise_sigma: 0.03             # AR(1) multiplicative noise
+  noise_rho: 0.8
+  seed: 2026
+  # Hourly factors for critical loads (local time); 1.0 = rating.
+  critical_profiles:
+    clinic:       {kw: crit_clinic_kw,       day: 1.0, night: 0.6, day_hours: [7, 18]}
+    water:        {kw: crit_water_kw,        day: 1.0, night: 0.3, day_hours: [5, 19]}
+    telecom:      {kw: crit_telecom_kw,      day: 1.0, night: 1.0, day_hours: [0, 24]}
+    municipal:    {kw: crit_municipal_kw,    day: 1.0, night: 0.3, day_hours: [8, 17]}
+    cold_storage: {kw: crit_cold_storage_kw, day: 1.0, night: 0.8, day_hours: [9, 18]}
