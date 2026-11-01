@@ -2,7 +2,11 @@
 
 Every number that describes Itbayat lives in [`site.yaml`](site.yaml). The value table at the bottom of this file is generated from it (`python -m aurora.data.site --write-sources`), so the two cannot drift apart.
 
-## Status of the numbers (1 Nov 2026)
+## Status of the numbers (2 Nov 2026)
+
+Update 2 Nov 2026: the INL report, DOE off-grid list, PhilAtlas profile, PAGASA normals and Tsai et al. (2020) were read via web fetch outside the cloud session. Values confirmed there are now `verified` (page numbers not recorded). Findings: the DOE list is "as of 31 December 2021"; the INL report does not give unit ratings, tank volume, resupply interval or annual energy, so those stay `missing`; distribution is 480 V primary / 240 V secondary; population is 3,128 (2020 census). The PAGASA PDF is headed 2001-2020 normals despite its URL. Tsai et al. study Batan Island, not Itbayat.
+
+### Original note (1 Nov 2026)
 
 The primary documents (INL report, DOE off-grid list, PhilAtlas, PAGASA normals, the three journal papers and the Castro et al. dataset) could not be opened from the cloud session: the network policy refused `www.osti.gov`, `legacy.doe.gov.ph`, `www.philatlas.com`, `pubfiles.pagasa.dost.gov.ph`, `www.mdpi.com`, `www.sdewes.org`, `linkinghub.elsevier.com` and `data.mendeley.com`. The bibliographic records below were checked on Crossref. The site values marked `brief_unverified` are the figures quoted in `docs/CLOUD_BRIEF.md` and still have to be checked page by page against the documents. Values marked `missing` are null in `site.yaml`, and `aurora.data.site.value()` refuses to return them.
 
@@ -23,7 +27,7 @@ To close the gap, open each PDF, fill the page number into the `note` field, cha
 Site documents:
 
 - **INL2025** Davis, R. Z. (2025). *Enhancing Power Resilience for Remote Communities: A Comprehensive Renewable Energy Solution for Itbayat Island.* Idaho National Laboratory, INL/RPT-25-83061, 30 Jan 2025. doi:[10.2172/3014068](https://doi.org/10.2172/3014068), https://www.osti.gov/servlets/purl/3014068 (title, author and date checked on Crossref).
-- **DOE_OFFGRID** Department of Energy, Philippines. *List of existing off-grid power plants* (Luzon, Visayas, Mindanao). https://legacy.doe.gov.ph/sites/default/files/pdf/electric_power/05a_lvm_off-grid_loepp-09302022.pdf. The file name suggests the list is dated 30 Sep 2022, while the brief says 2021. [verify]
+- **DOE_OFFGRID** Department of Energy, Philippines. *List of existing off-grid power plants* (Luzon, Visayas, Mindanao). https://legacy.doe.gov.ph/sites/default/files/pdf/electric_power/05a_lvm_off-grid_loepp-09302022.pdf. The document is titled "List of existing power plants (off-grid) as of December 2021".
 - **PHILATLAS** PhilAtlas, *Itbayat, Batanes profile*, compiling Philippine Statistics Authority census counts. https://www.philatlas.com/luzon/r02/batanes/itbayat.html. Prefer the PSA census tables themselves once they are reachable.
 - **PAGASA_BASCO** PAGASA, *Climatological normals 1991-2020, Basco Radar station.* https://pubfiles.pagasa.dost.gov.ph/pagasaweb/files/cad/CLIMATOLOGICAL%20NORMALS%20(1991-2020)/BASCO%20RADAR.pdf. Transcribe it into `reference/pagasa_basco_normals_1991_2020.csv`.
 - **TSAI2020** Tsai, C.-T., Beza, T. M., Wu, W.-B., Kuo, C.-C. (2020). Optimal configuration with capacity analysis of a hybrid renewable energy and storage system for an island application. *Energies* 13(1), 8. doi:[10.3390/en13010008](https://doi.org/10.3390/en13010008). CC BY 4.0. Transcribe its solar resource into `reference/tsai2020_solar.csv`.
@@ -65,32 +69,32 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 
 | Key | Value | Unit | Source | Date | Confidence | Status | Note |
 |---|---|---|---|---|---|---|---|
-| latitude | 20.78 | deg N | BRIEF |  | medium | brief_unverified | Town centre. Open-Meteo snaps to its grid; the grid point used is stored in each weather parquet. |
-| longitude | 121.84 | deg E | BRIEF |  | medium | brief_unverified |  |
-| population | 3100 | persons | PHILATLAS | [verify census year] | medium | brief_unverified | Brief says 'about 3,100'. Read exact census counts from PhilAtlas / PSA. |
-| diesel_installed_kw_doe | 1086 | kW | DOE_OFFGRID | 2021 per brief; file name says 2022-09-30 [verify] | medium | brief_unverified | 1.086 MW installed. Recorded for comparison; not the current state. |
-| diesel_dependable_kw_doe | 790 | kW | DOE_OFFGRID | 2021 per brief [verify] | medium | brief_unverified |  |
-| diesel_units_inl | 4 | units | INL2025 | 2025-01-30 | medium | brief_unverified | Current state used by AURORA (brief, known problem 2). |
-| diesel_combined_kw_inl | 660 | kW | INL2025 | 2025-01-30 | medium | brief_unverified |  |
-| diesel_out_of_service_kw_inl | 100 | kW | INL2025 | 2025-01-30 | medium | brief_unverified | One 100 kW unit out of service. |
+| latitude | 20.78 | deg N | PHILATLAS |  | high | verified | PhilAtlas gives 20.7858 N, 121.8407 E. Town centre. Open-Meteo snaps to its grid; the grid point used is stored in each weather parquet. |
+| longitude | 121.84 | deg E | PHILATLAS |  | high | verified |  |
+| population | 3128 | persons | PHILATLAS | 2020 census | high | verified | 831 households (2015 census, latest on the page); land area 83.13 km2. |
+| diesel_installed_kw_doe | 1086 | kW | DOE_OFFGRID | list as of 31 Dec 2021 | high | verified | ITBAYAT DPP, NPC-SPUG, 1.086 MW installed, 24 h operation, commissioned Dec 1996. No unit breakdown. Recorded for comparison; not the current state. checked 2026-11-02 against the document text via web fetch; page not recorded. |
+| diesel_dependable_kw_doe | 790 | kW | DOE_OFFGRID | list as of 31 Dec 2021 | high | verified |  |
+| diesel_units_inl | 4 | units | INL2025 | 2025-01-30 | medium | verified | Current state used by AURORA (brief, known problem 2). checked 2026-11-02 against the document text via web fetch; page not recorded. |
+| diesel_combined_kw_inl | 660 | kW | INL2025 | 2025-01-30 | medium | verified |  |
+| diesel_out_of_service_kw_inl | 100 | kW | INL2025 | 2025-01-30 | medium | verified | One 100 kW unit out of service. |
 | diesel_available_kw | 560 | kW | INL2025 | 2025-01-30 | medium | computed | 660 - 100 kW. |
-| diesel_unit_ratings_kw | **missing** | kW | INL2025 |  | low | missing | Individual ratings of the four units: read from the INL report. |
+| diesel_unit_ratings_kw | **missing** | kW | INL2025 |  | low | missing | Not stated in the INL report (only the 660 kW total and one broken 100 kW unit). Ask NPC-SPUG / BATANELCO. |
 | diesel_min_loading_frac | 0.3 | fraction of unit rating | ASSUMPTION |  | low | ASSUMPTION | Typical genset minimum loading; replace with INL or NPC-SPUG figure. Sensitivity range [0.25, 0.4]. |
-| peak_demand_kw | 250 | kW | INL2025 | 2024 [verify reference year] | medium | brief_unverified |  |
-| peak_season | May-July | months | INL2025 | 2025-01-30 | medium | brief_unverified |  |
-| peak_growth_since_2021 | 0.12 | fraction | INL2025 | 2025-01-30 | medium | brief_unverified | +12 % peak since 2021. |
-| annual_energy_mwh | **missing** | MWh/yr | INL2025 |  | low | missing | Read from INL report; use to check the synthetic load's load factor. |
-| diesel_price_php_per_l | 113 | PHP/L | INL2025 | 2025-01-30 | medium | brief_unverified | Base case. The team case study used 65 PHP/L (known problem 1). |
+| peak_demand_kw | 250 | kW | INL2025 | 2025-01-30 | medium | verified | INL says 'about 250 kW'; the reference year is not stated (report dated Jan 2025). |
+| peak_season | May-July | months | INL2025 | 2025-01-30 | medium | verified |  |
+| peak_growth_since_2021 | 0.12 | fraction | INL2025 | 2025-01-30 | medium | verified | +12 % peak since 2021. |
+| annual_energy_mwh | **missing** | MWh/yr | INL2025 |  | low | missing | Not reported by INL. Candidate source: Castro et al. (2022) dataset row for Itbayat. |
+| diesel_price_php_per_l | 113 | PHP/L | INL2025 | 2025-01-30 | medium | verified | INL: about 113 PHP/L (about 7.52 USD/gal), described as fluctuating. Base case. The team case study used 65 PHP/L (known problem 1). |
 | diesel_price_low_php_per_l | 65 | PHP/L | TEAM_CASE |  | low | ASSUMPTION | Sensitivity low case (value used by the team case study, unsourced there). |
 | diesel_price_high_php_per_l | 140 | PHP/L | BRIEF |  | low | ASSUMPTION | Sensitivity high case. |
-| fuel_supply_months_now | 2 | months | INL2025 | 2025-01-30 | medium | brief_unverified | 'About 2 months' of supply with the current system. |
-| fuel_supply_months_with_inl_system | 3 | months | INL2025 | 2025-01-30 | medium | brief_unverified |  |
-| fuel_storage_l | **missing** | L | INL2025 |  | low | missing | Tank capacity; read from INL report or NPC-SPUG. Needed for the Phase 3 fuel state. |
-| resupply_interval_days | **missing** | days | INL2025 |  | low | missing |  |
-| distribution_voltage_kv | **missing** | kV | INL2025 |  | low | missing |  |
-| pv_kwp_inl | 300 | kWp | INL2025 | 2025-01-30 | medium | brief_unverified |  |
-| battery_kw_inl | 300 | kW | INL2025 | 2025-01-30 | medium | brief_unverified |  |
-| battery_kwh_inl | 300 | kWh | INL2025 | 2025-01-30 | medium | brief_unverified |  |
+| fuel_supply_months_now | 2 | months | INL2025 | 2025-01-30 | medium | verified | 'About 2 months' of supply with the current system. |
+| fuel_supply_months_with_inl_system | 3 | months | INL2025 | 2025-01-30 | medium | verified |  |
+| fuel_storage_l | **missing** | L | INL2025 |  | low | missing | Not in the INL report. Ask NPC-SPUG. Needed for the Phase 3 fuel state; until then derive from 'about 2 months of supply' as an ASSUMPTION. |
+| resupply_interval_days | **missing** | days | INL2025 |  | low | missing | Not in the INL report. |
+| distribution_voltage_kv | 0.48 | kV | INL2025 | 2025-01-30 | medium | verified | Primary distribution 480 V; secondary 240 V via step-down transformers. |
+| pv_kwp_inl | 300 | kWp | INL2025 | 2025-01-30 | medium | verified |  |
+| battery_kw_inl | 300 | kW | INL2025 | 2025-01-30 | medium | verified |  |
+| battery_kwh_inl | 300 | kWh | INL2025 | 2025-01-30 | medium | verified |  |
 | pv_kwp_case | 500 | kWp | TEAM_CASE |  | low | ASSUMPTION | Illustrative size from the team case study. |
 | battery_kwh_case | 1500 | kWh | TEAM_CASE |  | low | ASSUMPTION |  |
 | cest_reserve_soc | 0.3 | fraction | BRIEF |  | medium | ASSUMPTION | CEST definition: SOC reserve floor. Design choice, not a site fact. |

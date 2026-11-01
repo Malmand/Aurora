@@ -164,7 +164,7 @@ def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FI
         L += ["Pending: satellite series not available.", ""]
 
     # ---- 2. Temperature vs PAGASA Basco normals ----
-    L += ["## 2. Temperature vs PAGASA Basco normals (1991-2020)", ""]
+    L += ["## 2. Temperature vs PAGASA Basco normals (2001-2020)", ""]
     pag = _ref_csv("pagasa_basco_normals_1991_2020.csv")
     tprods = {k: monthly_mean(v["temp_c"]) for k, v in prods.items() if "temp_c" in v}
     have_pag = pag is not None and pag["tmean_c"].notna().all()
@@ -184,6 +184,9 @@ def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FI
                 bias = np.mean([tprods[k].loc[m, "mean"] - float(pag.loc[pag["month"] == m, "tmean_c"].iloc[0]) for m in range(1, 13)])
                 L.append(f"- **{k} vs PAGASA, annual mean temperature: {bias:+.1f} °C, "
                          f"{'agrees' if abs(bias) <= 1 else 'investigate'}** (tolerance ±1 °C).")
+            L.append("- Part of any warm bias is expected: the Basco station sits at 167 m (about 1 °C cooler than "
+                     "sea level at a standard lapse rate), the gridded products are ocean-dominated, and they cover "
+                     "2015 onwards while the normals cover 2001-2020. The PDF is headed 2001-2020 although its URL says 1991-2020.")
         else:
             L.append("- **Pending.** `data/itbayat/reference/pagasa_basco_normals_1991_2020.csv` is not yet transcribed "
                      "(the PAGASA host was blocked from the cloud session). Years also differ: normals are 1991-2020, "
@@ -206,8 +209,14 @@ def build_report(out_md=paths.DOCS_DIR / "validation_site.md", fig_stem=paths.FI
                 f"{pct(mg[k].loc[m, 'mean'], tv):+.1f}" if pd.notna(tv) else "-" for k in mg) + " |")
         L.append("")
     else:
-        L += ["- **Pending.** `data/itbayat/reference/tsai2020_solar.csv` is not yet transcribed "
-              "(www.mdpi.com blocked from the cloud session).", ""]
+        L += ["- Tsai et al. (2020) give monthly GHI only as a chart, so only the annual value is compared. "
+              "Their site is Batan Island (Basco), about 45 km from Itbayat.", ""]
+        for k in mg:
+            ann = float(mg[k]["mean"].mean())
+            p_ = pct(ann, 5.14)
+            L.append(f"- **{k} annual mean {ann:.2f} kWh/m²/day vs Tsai et al. 5.14 kWh/m²/day "
+                     f"(1,876 kWh/m²/yr): {p_:+.1f} %, {verdict(p_)}.**")
+        L.append("")
 
     # ---- 4. PV yield ----
     L += ["## 4. Annual PV specific yield", "",
