@@ -1,0 +1,11 @@
+reference,lead_day,rmse_skill,rmse_lo,rmse_hi,crps_skill,crps_lo,crps_hi
+Raw NWP: ECMWF IFS,1,11.2,8.3,14.1,34.1,32.4,35.7
+Raw NWP: GFS,1,46.7,44.6,48.8,63.3,62.0,64.5
+Raw NWP: ICON,1,32.1,29.0,35.3,52.7,50.8,54.6
+Raw NWP: mean of 3,1,15.3,12.5,18.0,38.3,36.5,40.0
+Smart persistence,1,46.3,43.3,49.7,60.0,58.2,62.0
+Raw NWP: ECMWF IFS,2,8.5,5.2,11.2,32.7,30.7,34.5
+Raw NWP: GFS,2,42.9,40.2,45.5,60.2,58.5,61.7
+Raw NWP: ICON,2,26.9,24.6,30.1,48.7,47.1,50.7
+Raw NWP: mean of 3,2,10.7,8.3,13.3,35.1,33.2,37.1
+Smart persistence,2,46.8,43.9,50.2,61.2,59.1,63.5
