@@ -48,3 +48,19 @@ def test_discounted_payback_with_replacement():
     flows[14] -= 60                   # capex 250: repaid in year 13, dips to 240 in year 15, repaid again in year 16
     assert discounted_payback(250, flows, 0.0) == pytest.approx(15.5)
     assert pd.isna(discounted_payback(100, [5] * 20, 0.0994))
+
+
+def test_aurora_cost_per_outage_hour(tmp_path, monkeypatch):
+    from aurora.experiments import phase4_tables as T
+    monkeypatch.setattr(T, "OUT", tmp_path)
+    rows = []                                                    # SYNTHETIC storm results
+    for st in ("s1", "s2"):
+        for d, b in zip((3, 7, 14), (0, 10, 50)):
+            rows += [dict(storm=st, sizing="inl", delay_days=d, controller="B", crit_outage_h=b),
+                     dict(storm=st, sizing="inl", delay_days=d, controller="C", crit_outage_h=0)]
+    sm, pe = T.aurora_resilience(pd.DataFrame(rows))
+    lam = T.event_rate_per_yr()[0]
+    assert sm.loc[0, "avoided_h_per_event"] == pytest.approx(0.3 * 10 + 0.2 * 50)
+    ann = 2.5e6 * T.crf(0.0994, 20) + 0.5e6
+    assert sm.loc[0, "cost_per_h_avoided_base_php"] == pytest.approx(ann / (lam * 13.0))
+    assert pe["cost_per_h_avoided_base_php"].isna().sum() == 2      # 3-day delay: nothing avoided
