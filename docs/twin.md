@@ -53,20 +53,20 @@ Fuel use of n committed units producing P kW over one hour is F = a P_u n + b P.
 
 For each step t of the horizon, on the P50 forecast:
 
-min Σ_t [c_f F_t + c_deg (P_c,t + P_x,t) + c_shed L_t + c_st s_t] + (c_risk / (H Q)) Σ_t Σ_q z_q,t + c_sc w − v_e e_H
+min Σ_t [c_f F_t + c_deg (P_c,t + P_x,t) + c_shed (1 − 0.001 t/H) L_t + c_st s_t] + (c_risk / (H Q)) Σ_t Σ_q z_q,t + c_sc Σ_k π_k (u_k / sfc_min + w_k) − v_e e_H
 
-c_f is the diesel price plus the CO2 shadow cost per litre. P_c and P_x are battery charge and discharge. L is the flexible load shed, s counts unit starts, e is battery energy, z and w are the risk and fuel-autonomy shortfalls defined below, and v_e values the energy left in the battery at the horizon end at the diesel energy it displaces.
+c_f is the diesel price plus the CO2 shadow cost per litre. P_c and P_x are battery charge and discharge. L is the flexible load shed, s counts unit starts, e is battery energy, z is the risk shortfall and u_k, w_k are the fuel shortfalls of delivery scenario k with probability π_k (both defined below), and v_e values the energy left in the battery at the horizon end at the diesel energy it displaces.
 
 The constraints:
 
 - **Power balance.** PV − curtailment + P_d + P_x − P_c = D_crit + D_flex − L. There is no slack on critical load, so it is a hard constraint.
 - **Battery.** e_t+1 = e_t + η P_c − P_x / η, with E soc_min ≤ e ≤ E soc_max.
 - **Diesel.** n_t P_u m ≤ P_d ≤ n_t P_u, where n_t is an integer from 0 to 3 and m is the minimum load. Starts satisfy s_t ≥ n_t − n_t−1.
-- **Fuel.** V_t+1 = V_t − F_t, with V ≥ 0. V resets to capacity at an expected delivery. An overdue tanker is expected 7 days from now, re-estimated every hour.
+- **Fuel, per delivery scenario k.** V_k,t+1 = V_k,t − F_t, reset to capacity at scenario k's arrival. V_k may go negative in the plan (fuel "borrowed"); u_k ≥ −V_k,t and u_k ≥ 0 measure the largest deficit. The plant enforces the real tank.
 - **Risk.** z_q,t ≥ N_q,t − (e_t − E soc_cest), with z ≥ 0.
-- **Fuel autonomy.** w ≥ C_need − V_H / sfc_min − (e_H − E soc_cest), with w ≥ 0.
+- **Fuel autonomy.** w_k ≥ C_need,k − (V_k,H + u_k) / sfc_min − (e_H − E soc_cest), with w_k ≥ 0.
 
-If the hard model is infeasible (fuel and battery cannot physically carry critical load), C solves it again with a critical slack at 1e5 PHP/kWh and flags the step `relaxed`. A binary that forbids simultaneous charge and discharge is available (`exclusive_battery=True`). It is off by default: with losses, a degradation cost and free curtailment, the solver never chooses both at once, and the objective came out identical in a benchmark. The relative MIP gap is 0.5 %.
+If the hard model is infeasible (diesel and battery cannot physically carry critical load), C solves it again with a critical slack at 1e5 PHP/kWh and flags the step `relaxed`. A binary that forbids simultaneous charge and discharge is available (`exclusive_battery=True`). It is off by default: with losses, a degradation cost and free curtailment, the solver never chooses both at once, and the objective came out identical in a benchmark. The relative MIP gap is 0.5 %.
 
 ### Risk term and R(t) (`scenarios.py`)
 
@@ -75,9 +75,11 @@ The twin draws 64 Monte Carlo scenarios of solar and critical demand from the fo
 - In the MILP, z is the expected shortfall of stored energy against N, a linear surrogate for the shortfall probability.
 - In the output, **R(t)** is the share of scenarios in which the battery at the start of step t cannot carry critical load through the 24 h window if diesel stopped then.
 
-### Fuel autonomy
+### Fuel autonomy under an uncertain tanker delay
 
-C_need is the critical deficit (P90 critical minus P10 solar, with the last forecast day repeated) from the horizon end until the next expected delivery. Its penalty (500 PHP/kWh) is higher than the flexible-shedding penalty (150 PHP/kWh). So when fuel runs short, C sheds flexible load first to keep fuel for the clinic, water and telecoms.
+Deliveries that are not yet due are taken as on time. Once a tanker is overdue, its total delay is uncertain: 3, 7 or 14 days after the planned time, with weights 0.5, 0.3 and 0.2 (`overdue_delay_scenarios_days`, `overdue_delay_weights`, both ASSUMPTION). Every hour, the scenarios whose arrival time has already passed are dropped and the remaining weights renormalised. After 3 days without the tanker the belief is 0.6 (7 days) and 0.4 (14 days); after 7 days it is the 14-day scenario alone. If all three pass, the MPC assumes the tanker is 7 days away, re-estimated every hour (`overdue_resupply_days_assumed`).
+
+C_need,k is the critical deficit (P90 critical minus P10 solar, last forecast day repeated) from the horizon end to scenario k's next delivery. It is zero when that delivery falls inside the horizon. Shedding 1 kWh of flexible load saves about 1 kWh of diesel in every scenario, so it pays only when 500 PHP/kWh × P(fuel shortfall) is above the 150 PHP/kWh shedding penalty, that is when the probability of a shortfall is above 0.3. With the base weights, a delay that only the 14-day scenario cannot cover (P = 0.2) leads to no shedding until the 3-day scenario has passed. Among equally good plans, shedding is made slightly cheaper later in the horizon, so the MPC defers it while the tanker may still come. The tests check both the belief update and the threshold.
 
 ## CEST (`cest.py`)
 
@@ -91,27 +93,34 @@ CEST counts the hours that critical load can run on the battery plus forecast P1
 
 ## Demonstration: typhoon Mawar (Betty), late May 2023
 
-`python -m aurora.twin.run --demo`. The window runs for 10 days from 27 May 2023, 00:00 PHT, with ERA5 weather and the synthetic load. Mawar passed 329 km from Itbayat on 30 May. The forecast is the twin's persistence baseline. Stress assumption: the tank holds 6,000 L (10 %) when the tanker due on 28 May is delayed 7 days, to 4 June. Phase 4 runs the full set (Sep 2022 and Betty, delays of 3, 7 and 14 days, value of forecasting).
+`python -m aurora.twin.run --demo`. The windows start on 27 May 2023, 00:00 PHT, with ERA5 weather and the synthetic load. Mawar passed 329 km from Itbayat on 30 May. The forecast is the twin's persistence baseline. Stress assumption: the tank holds 6,000 L (10 %) when the tanker due on 28 May is delayed. Two delays are run: 7 days (tanker arrives 4 June, window 11 days) and 14 days (tanker arrives 11 June, window 18 days). Each window ends 3 days after the arrival. Phase 4 runs the full set (Sep 2022 and Betty, delays of 3, 7 and 14 days, value of forecasting).
 
-| Sizing | Ctl | Diesel (L) | Fuel (M PHP) | CO2 (t) | RE share (%) | Flex shed (kWh) | Critical unserved (kWh) | Critical outage (h) | Battery throughput (kWh) | CEST median (h) | CEST ≥ 12 h (%) | CEST ≥ 24 h (%) | Mean R | Tank min (L) |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| inl | A | 7,969 | 0.90 | 21.4 | 0.0 | 4,984 | 2,419 | 49 | 0 | 0.0 | 0.0 | 0.0 | 1.00 | 0 |
-| inl | B | 6,757 | 0.76 | 18.1 | 35.9 | 0 | 0 | 0 | 1,459 | 0.0 | 0.4 | 0.0 | 0.89 | 437 |
-| inl | C | 5,898 | 0.67 | 15.8 | 35.6 | 2,352 | 0 | 0 | 2,941 | 4.9 | 20.4 | 0.0 | 0.74 | 1,260 |
-| case | A | 7,969 | 0.90 | 21.4 | 0.0 | 4,984 | 2,419 | 49 | 0 | 0.0 | 0.0 | 0.0 | 1.00 | 0 |
-| case | B | 4,227 | 0.48 | 11.3 | 59.6 | 0 | 0 | 0 | 7,408 | 0.0 | 27.9 | 27.1 | 0.56 | 2,425 |
-| case | C | 4,291 | 0.49 | 11.5 | 55.1 | 0 | 0 | 0 | 7,333 | 72.0 | 85.8 | 81.7 | 0.07 | 2,368 |
+| Delay | Sizing | Ctl | Critical outage (h) | Critical unserved (kWh) | Flex shed (kWh) | Diesel (L) | CEST median (h) | CEST ≥ 12 h (%) | Mean R | Tank min (L) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 7 d | inl | A | 49 | 2,419 | 4,984 | 8,975 | 0.0 | 0.0 | 1.00 | 0 |
+| 7 d | inl | B | 0 | 0 | 0 | 7,387 | 0.0 | 0.4 | 0.89 | 437 |
+| 7 d | inl | C | 0 | 0 | 3,013 | 6,265 | 4.9 | 18.9 | 0.73 | 1,491 |
+| 7 d | case | A | 49 | 2,419 | 4,984 | 8,975 | 0.0 | 0.0 | 1.00 | 0 |
+| 7 d | case | B | 0 | 0 | 0 | 4,588 | 0.0 | 28.8 | 0.55 | 2,425 |
+| 7 d | case | C | 0 | 0 | 0 | 4,680 | 72.0 | 86.0 | 0.07 | 2,307 |
+| 14 d | inl | A | 217 | 10,763 | 21,861 | 8,948 | 0.0 | 0.0 | 1.00 | 0 |
+| 14 d | inl | B | 89 | 3,104 | 10,488 | 8,446 | 0.0 | 0.2 | 0.90 | 0 |
+| 14 d | inl | C | 0 | 0 | 12,673 | 8,386 | 4.8 | 13.7 | 0.77 | 0 |
+| 14 d | case | A | 217 | 10,763 | 21,861 | 8,948 | 0.0 | 0.0 | 1.00 | 0 |
+| 14 d | case | B | 2 | 70 | 356 | 8,088 | 0.0 | 26.6 | 0.57 | 0 |
+| 14 d | case | C | 0 | 0 | 0 | 8,063 | 72.0 | 84.3 | 0.07 | 16 |
 
-Source: `results/twin/demo_mawar2023_kpis.csv`. The hourly runs are in `results/twin/demo_mawar2023_{inl,case}/run_{A,B,C}.csv`.
+Source: `results/twin/demo_mawar2023_kpis.csv`. The hourly runs are in `results/twin/demo_mawar2023_delay{7,14}d_{inl,case}/run_{A,B,C}.csv`. A has no PV or battery, so its row is the same for both sizings.
 
 What this shows, and what it does not:
 
-- **Diesel only runs dry.** A runs out of fuel about 6 days into the delay and leaves critical load unserved for 49 h.
-- **INL sizing.** B gets through with 437 L left. C uses 13 % less diesel, but it sheds 2,352 kWh of flexible load as insurance, because it assumes the late tanker is always 7 more days away. Looking back, this delay did not need that insurance. The setting is `overdue_resupply_days_assumed` (range 3 to 14 days) and Phase 4 should sweep it. With a 300 kWh battery, CEST stays short (median 4.9 h for C), because 195 kWh above the reserve covers about 5 h of critical load at night (35 kW) and less in the evening (49 to 65 kW).
-- **Case sizing.** Fuel use is about the same for B and C (+1.5 % for C). The difference is resilience: C keeps the battery charged ahead of the low-sun days, so median CEST is 72 h (censored) against 0 h for B, and R drops from 0.56 to 0.07.
-- This is one window, one assumed tank level and the persistence forecast. These numbers show the twin works. They are not the headline results, which come from Phase 4.
-
-The case where the hard constraint matters is checked in `tests/test_twin.py::test_mpc_protects_critical_when_fuel_is_short`: under an overcast spell, the fuel is enough for critical load but not for all load. There B runs dry and leaves critical load unserved, while C sheds flexible load and serves all critical load.
+- **Diesel only runs dry.** A runs out of fuel about 6 days into the delay. That means 49 h of critical outage with a 7-day delay and 217 h with a 14-day delay.
+- **B loses critical load when the delay is long.** With the 14-day delay, B empties the tank and loses critical load for 89 h at INL sizing and 2 h at case sizing. C serves all critical load in both cases, from the same fuel.
+- **INL sizing, 7-day delay.** C sheds no flexible load for the first 3 days of the delay (previously it shed from the first day). It starts on 31 May, when the 3-day scenario has passed and the belief is 0.4 for a 14-day delay, because 0.4 × 500 > 150 PHP/kWh. The tanker then arrived on day 7, so in hindsight the 3,013 kWh shed was insurance that was not needed. This is the price of the hedge that keeps critical load served in the 14-day run. The trade-off is set by the delay weights and the two penalties, which Phase 4 should sweep. C also uses 15 % less diesel than B here.
+- **INL sizing, 14-day delay.** C sheds more flexible load than B (12,673 vs 10,488 kWh) but trades 89 h of critical outage for none. The tank reaches 0 L just before the tanker arrives.
+- **Case sizing.** The larger battery and PV carry both delays without shedding. Fuel is about the same for B and C (+2 % at 7 days, −0.3 % at 14 days). C keeps the battery charged, so median CEST is 72 h (censored) against 0 h for B, and mean R is 0.07 against 0.55 to 0.57.
+- With a 300 kWh battery, CEST stays short (median about 5 h for C), because 195 kWh above the reserve covers about 5 h of critical load at night (35 kW) and less in the evening (49 to 65 kW).
+- This is one storm, one assumed tank level and the persistence forecast. These numbers show the twin works. They are not the headline results, which come from Phase 4.
 
 ## Run time
 
@@ -132,7 +141,8 @@ Every value is in `data/itbayat/site.yaml`, with its range listed in `SOURCES.md
 | `co2_shadow_price_php_per_t` | 2,800 PHP/t | Emissions term (design weight, no Philippine carbon price) |
 | `fuel_storage_l_assumed` | 60,000 L | Tank volume is missing; 2 months × 991 L/day |
 | `resupply_interval_days_assumed` | 30 d | Resupply interval is missing |
-| `overdue_resupply_days_assumed` | 7 d | MPC belief about an overdue tanker |
+| `overdue_delay_scenarios_days`, `overdue_delay_weights` | 3/7/14 d, 0.5/0.3/0.2 | Belief about an overdue tanker's total delay |
+| `overdue_resupply_days_assumed` | 7 d | Fallback once all delay scenarios have passed |
 | `battery_kw_case` | 375 kW | Team case battery power |
 | `battery_eta_oneway`, `battery_soc_min/max/initial` | 0.95, 0.20/0.95/0.60 | Battery model |
 | `battery_degradation_php_per_kwh` | 4.0 PHP/kWh | Throughput wear cost |
