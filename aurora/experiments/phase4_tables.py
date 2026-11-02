@@ -220,7 +220,7 @@ def costs_table(year_summ):
         for price in (65, 113, 140):
             sav = saved_l * price / usd                       # USD per year
             net = sav - om * cap["value"]
-            rows.append(dict(sizing=r.sizing, pv_kwp=r.pv_kwp, bat_kwh=r.bat_kwh, bat_kw=bat_kw,
+            rows.append(dict(cost_basis=P.cost_basis()["basis"], sizing=r.sizing, pv_kwp=r.pv_kwp, bat_kwh=r.bat_kwh, bat_kw=bat_kw,
                              controller=r.controller, diesel_price_php_per_l=price,
                              capex_musd=cap["value"] / 1e6, capex_low_musd=cap["low"] / 1e6,
                              capex_high_musd=cap["high"] / 1e6, diesel_saved_l_per_yr=saved_l,
@@ -231,6 +231,46 @@ def costs_table(year_summ):
                              net_payback_with_om_yr=cap["value"] / net if net > 0 else np.nan))
     t = pd.DataFrame(rows)
     t.to_csv(OUT / "costs.csv", index=False)
+    return t
+
+
+EFFECT_COLS = {"diesel_l_per_yr": "diesel saved (L/yr)", "co2_t_per_yr": "CO2 avoided (t/yr)",
+               "fuel_cost_mphp_per_yr": "fuel cost saved (M PHP/yr)", "crit_outage_h": "critical outage h avoided",
+               "renewable_share_pct": "renewable share gain (pp)", "cest_median_h": "median CEST gain (h)",
+               "flex_shed_mwh_per_yr": "flex shed added (MWh/yr)"}
+
+
+def effects_year(ys):
+    """A->B (adding PV and battery) and B->C (AURORA's own effect), full years."""
+    rows = []
+    a = ys[ys.controller == "A"].iloc[0]          # A has no PV or battery: one row serves every size
+    for sz, g in ys[ys.controller != "A"].groupby("sizing", sort=False):
+        b, c = g[g.controller == "B"].iloc[0], g[g.controller == "C"].iloc[0]
+        for step, x, y in (("A->B (add PV + battery)", a, b), ("B->C (AURORA)", b, c)):
+            r = dict(sizing=sz, step=step)
+            for k, lab in EFFECT_COLS.items():
+                d = y[k] - x[k]
+                r[lab] = -d if k in ("diesel_l_per_yr", "co2_t_per_yr", "fuel_cost_mphp_per_yr", "crit_outage_h") else d
+            r["diesel saved (%)"] = 100 * (x["diesel_l_per_yr"] - y["diesel_l_per_yr"]) / x["diesel_l_per_yr"]
+            rows.append(r)
+    t = pd.DataFrame(rows)
+    t.to_csv(OUT / "effects_year.csv", index=False)
+    return t
+
+
+def effects_storms(st):
+    """A->B and B->C on the storm runs, per storm, sizing and delay."""
+    rows = []
+    for (s_, sz, d), g in st.groupby(["storm", "sizing", "delay_days"], sort=False):
+        x = {c: g[g.controller == c].iloc[0] for c in "ABC"}
+        for step, a, b in (("A->B", x["A"], x["B"]), ("B->C", x["B"], x["C"])):
+            rows.append(dict(storm=s_, sizing=sz, delay_days=d, step=step,
+                             crit_outage_h_avoided=a.crit_outage_h - b.crit_outage_h,
+                             flex_shed_added_kwh=b.flex_shed_kwh - a.flex_shed_kwh,
+                             diesel_saved_l=a.diesel_l - b.diesel_l,
+                             cest_median_gain_h=b.cest_median_h - a.cest_median_h))
+    t = pd.DataFrame(rows)
+    t.to_csv(OUT / "effects_storms.csv", index=False)
     return t
 
 
@@ -258,13 +298,14 @@ def write_all():
     OUT.mkdir(parents=True, exist_ok=True)
     parts = []
     t = storms_table()
-    parts += ["## Storm runs (Phase 2 forecast)", md(t)]
+    parts += ["## Storm runs (Phase 2 forecast)", md(t), "### Effects: A->B and B->C", md(effects_storms(t))]
     v, agg = vof_table()
     parts += ["## Value of forecasting (controller C)", md(v), "### Totals per storm", md(agg)]
     parts += ["## Mawar 7-day INL decomposition (64 scenarios)", md(decomposition_table()),
               "### Forecast bias over the window", md(decomp_forecast_bias())]
     yp, ys = year_table()
-    parts += ["## Full years", md(yp.round(2)), "### Mean of the two years (lo/hi = year range)", md(ys.round(2))]
+    parts += ["## Full years", md(yp.round(2)), "### Mean of the two years (lo/hi = year range)", md(ys.round(2)),
+              "### Effects: A->B and B->C", md(effects_year(ys).round(2))]
     sw, mg, rec = sweep_table()
     parts += ["## Sizing sweep (Mawar, 14-day delay)", "### C critical outage (h)", md(pivot(sw, "C", "crit_outage_h")),
               "### C median CEST (h)", md(pivot(sw, "C", "cest_median_h")),

@@ -126,17 +126,32 @@ values:
     {value: 56, unit: PHP/USD, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
      range: [50, 60], note: "Exchange rate used by the team case study."}
   # ---------------- capital costs (Phase 4) ----------------
-  # No sourced installed-cost figure for Itbayat or Batanes is in the repo. All four
-  # values are ASSUMPTIONs; Phase 4 reports payback at the low and high ends.
-  pv_capex_usd_per_kwp_assumed:
+  # Published base costs (IRENA 2025; NREL ATB 2025 for the battery if IRENA has none)
+  # times (1 + remote-island logistics markup). The published values are `missing`
+  # until transcribed from the documents (irena.org and nrel hosts were not reachable
+  # from the cloud session). Until then the costs fall back to the interim_* values,
+  # which are all-in island ASSUMPTIONs and take no markup.
+  pv_capex_usd_per_kw_irena2025:
+    {value: null, unit: USD/kW, source: IRENA2025, date: 2026-07, confidence: medium, status: missing,
+     note: "Global weighted-average total installed cost of utility-scale PV in 2025. [verify] table number and value."}
+  battery_capex_usd_per_kwh_irena2025:
+    {value: null, unit: USD/kWh, source: IRENA2025, date: 2026-07, confidence: medium, status: missing,
+     note: "Utility-scale battery storage installed cost in 2025, if the report gives one. [verify] table number, value and duration."}
+  battery_capex_usd_per_kwh_nrel_atb2025:
+    {value: null, unit: USD/kWh, source: NREL_ATB2025, date: 2025, confidence: medium, status: missing,
+     note: "4-hour utility-scale Li-ion capital cost, base year, moderate case. Used only if IRENA2025 gives no battery cost. [verify] table and dollar year."}
+  remote_island_logistics_markup_assumed:
+    {value: 0.5, unit: fraction added to the published cost, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.25, 1.0], note: "Shipping to Batanes by sea, small project size, island labour and civil works. Applied to the published PV and battery costs."}
+  interim_pv_capex_usd_per_kwp_assumed:
     {value: 1500, unit: USD/kWp, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
-     range: [1000, 2500], note: "Installed PV on a remote island including shipping and balance of system. Replace with an INL, NPC-SPUG or vendor quote."}
-  battery_capex_usd_per_kwh_assumed:
+     range: [1000, 2500], note: "Interim all-in island PV cost, used only while pv_capex_usd_per_kw_irena2025 is missing."}
+  interim_battery_capex_usd_per_kwh_assumed:
     {value: 450, unit: USD/kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
-     range: [300, 700], note: "Battery energy cost; same 450 USD/kWh as the team case value behind battery_degradation_php_per_kwh."}
+     range: [300, 700], note: "Interim battery energy cost (team case value behind battery_degradation_php_per_kwh), used only while the published values are missing."}
   battery_pcs_capex_usd_per_kw_assumed:
     {value: 150, unit: USD/kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
-     range: [100, 300], note: "Battery inverter (power conversion system)."}
+     range: [100, 300], note: "Battery inverter (power conversion system); applies to the interim costs only, since published battery system costs include it."}
   om_frac_of_capex_per_year_assumed:
     {value: 0.02, unit: fraction of capex per year, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [0.01, 0.03], note: "PV and battery O&M, used for the net payback."}

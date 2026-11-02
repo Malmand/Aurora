@@ -265,11 +265,37 @@ def sensitivity_jobs(start, pv, b):
             for lab, ov, ls, t0 in cases]
 
 
+def cost_basis(site_values=None) -> dict:
+    """Unit costs (USD) and their basis.
+
+    Published: PV from IRENA 2025, battery from IRENA 2025 or else NREL ATB 2025,
+    each times (1 + remote-island logistics markup); published battery system
+    costs include the inverter. Interim, while the published values are missing:
+    the all-in island ASSUMPTIONs plus a separate inverter cost.
+    which = value | low | high moves the markup (published) or the interim
+    ASSUMPTIONs (interim) across their ranges.
+    """
+    s = site_values or load_site()["values"]
+    pv, bi, bn = (s[k]["value"] for k in ("pv_capex_usd_per_kw_irena2025", "battery_capex_usd_per_kwh_irena2025",
+                                          "battery_capex_usd_per_kwh_nrel_atb2025"))
+    bat = bi if bi is not None else bn
+    if pv is not None and bat is not None:
+        mk = s["remote_island_logistics_markup_assumed"]
+        return dict(basis="published", pv=pv, bat=bat, pcs=0.0, markup=mk["value"], markup_range=mk["range"],
+                    bat_source="IRENA2025" if bi is not None else "NREL_ATB2025")
+    g = lambda k: (s[k]["value"], s[k]["range"])  # noqa: E731
+    return dict(basis="interim ASSUMPTION", pv=g("interim_pv_capex_usd_per_kwp_assumed"),
+                bat=g("interim_battery_capex_usd_per_kwh_assumed"), pcs=g("battery_pcs_capex_usd_per_kw_assumed"))
+
+
 def capex_usd(pv_kwp, bat_kwh, bat_kw, site=None, which="value"):
-    s = site or load_site()["values"]
-    g = (lambda k: s[k]["value"]) if which == "value" else (lambda k: s[k]["range"][0 if which == "low" else 1])
-    return (pv_kwp * g("pv_capex_usd_per_kwp_assumed") + bat_kwh * g("battery_capex_usd_per_kwh_assumed")
-            + bat_kw * g("battery_pcs_capex_usd_per_kw_assumed"))
+    c = cost_basis(site)
+    if c["basis"] == "published":
+        mk = {"value": c["markup"], "low": c["markup_range"][0], "high": c["markup_range"][1]}[which]
+        return (1 + mk) * (pv_kwp * c["pv"] + bat_kwh * c["bat"])
+    i = {"value": None, "low": 0, "high": 1}[which]
+    v = (lambda t: t[0]) if i is None else (lambda t: t[1][i])  # noqa: E731
+    return pv_kwp * v(c["pv"]) + bat_kwh * v(c["bat"]) + bat_kw * v(c["pcs"])
 
 
 def load_rows(prefix=None) -> pd.DataFrame:
