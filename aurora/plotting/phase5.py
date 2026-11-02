@@ -108,9 +108,9 @@ def fig_a_site_system():
     ax.plot(*route[0], marker="D", color=OI["vermillion"], ms=4.5, zorder=6)
     ax.text(route[0][0] + 0.3, route[0][1] - 0.02, "Bolinao (tanker port)", fontsize=6, ha="left", va="center",
             color=OI["vermillion"], zorder=6, bbox=dict(fc=LAND, ec="none", pad=0.3))
-    ax.text(119.15, 18.35, "fuel route\n(schematic)", fontsize=6, color=OI["vermillion"], ha="center", zorder=6)
+    ax.text(118.45, 17.35, "fuel route\n(schematic)", fontsize=6, color=OI["vermillion"], ha="center", zorder=6)
     ax.plot(lon0, lat0, marker="*", color="black", ms=10, mec="white", mew=0.5, zorder=7)
-    ax.text(lon0 + 0.25, lat0 + 0.12, "Itbayat", fontsize=7.5, fontweight="bold", zorder=7)
+    ax.text(122.45, 20.95, "Itbayat", fontsize=7.5, fontweight="bold", zorder=7, va="center")
     for txt, (x, y) in {"LUZON": (121.45, 17.35), "TAIWAN": (120.95, 23.55)}.items():
         ax.text(x, y, txt, fontsize=7, color="0.45", ha="center", style="italic", zorder=1)
     ax.text(118.6, 21.55, "South China Sea", fontsize=6, color="0.55", ha="center", style="italic", zorder=1)
@@ -121,15 +121,21 @@ def fig_a_site_system():
     ax.set_facecolor(SEA)
     ax.set_xlabel("Longitude (°E)")
     ax.set_ylabel("Latitude (°N)")
-    ax.legend(loc="lower left", fontsize=5.8, handlelength=2.6, framealpha=0.95, frameon=True, edgecolor="none",
-              bbox_to_anchor=(0.0, 0.0), borderaxespad=0.3)
+    # label the tracks directly instead of a legend box (keeps Luzon visible)
+    for (x, y, ha), key, nm in (((117.0, 19.3, "left"), "ragasa2025", "RAGASA"),
+                                ((124.45, 22.9, "right"), "mekkhala2026", "MEKKHALA"),
+                                ((125.65, 21.45, "left"), "mawar2023", "MAWAR")):
+        km = [r_["closest_km"] for r_ in rows if r_["storm"] == key][0]
+        ax.text(x, y, f"{STORMS[key]}\n{km:.0f} km away", fontsize=5.8, ha=ha, va="center",
+                color=styles[nm][0], fontweight="bold", zorder=6, linespacing=1.1,
+                bbox=dict(fc="white", ec="none", pad=0.4, alpha=0.9))
     ax.text(0.99, 0.01, "Tracks: IBTrACS v04r01\nLand: Natural Earth 1:10m", transform=ax.transAxes, fontsize=5,
             color="0.4", ha="right", va="bottom")
-    style.panel_label(ax, "A")
+    fig.text(0.012, 0.965, "A", fontsize=11, fontweight="bold", va="top")
     # inset: the Batanes islands
     ins = fig.add_axes([0.085, 0.60, 0.115, 0.27])
     _land(ins, lw=0.5)
-    for nm_, (x, y, ha) in {"Itbayat": (121.84, 20.96, "center"), "Batan": (122.04, 20.47, "left"),
+    for nm_, (x, y, ha) in {"Itbayat": (121.84, 20.96, "center"), "Batan": (122.08, 20.47, "left"),
                             "Sabtang": (121.92, 20.20, "left")}.items():
         ins.text(x, y, nm_, fontsize=5.5, ha=ha, va="center", fontweight="bold" if nm_ == "Itbayat" else None)
     ins.plot(lon0, lat0, marker="*", color="black", ms=6, zorder=5)
@@ -187,21 +193,26 @@ def fig_a_site_system():
     box(6.4, 1.8, 3.0, 1.6, "Flexible load", "homes, shops", "0.45")
     for y_ in (5.75, 3.75, 1.75):
         line([(3.0, y_), (4.0, y_)])
+    bx.annotate("", xy=(3.0, 3.75), xytext=(3.05, 3.75),
+                arrowprops=dict(arrowstyle="-|>", color="0.35", lw=0.9, mutation_scale=8, shrinkA=0, shrinkB=0))
     line([(5.6, 5.1), (6.4, 5.1)])
     line([(5.6, 2.6), (6.4, 2.6)])
     # fuel by sea
-    box(0.2, -0.75, 2.8, 0.95, "Fuel tank, filled by sea", "", OI["vermillion"], ls="--")
+    bx.add_patch(FancyBboxPatch((0.2, -0.85), 2.8, 1.05, boxstyle="round,pad=0.02,rounding_size=0.15", fc="white",
+                                ec=OI["vermillion"], lw=1.0, ls="--"))
+    bx.text(1.6, -0.32, "Fuel tank\nrefilled by sea", ha="center", va="center", fontsize=5.8, color=OI["vermillion"],
+            linespacing=1.15)
     line([(1.6, 0.2), (1.6, 1.0)], c=OI["vermillion"])
     # control signals (dashed blue)
     cs = dict(c=OI["blue"], ls=(0, (2.5, 1.5)), lw=0.9)
-    line([(3.5, 7.4), (3.5, 3.75), (3.0, 3.75)], **cs)
-    line([(3.5, 3.75), (3.5, 1.75), (3.0, 1.75)], **cs)
+    line([(3.5, 7.4), (3.5, 4.2), (3.0, 4.2)], **cs)
+    line([(3.5, 4.2), (3.5, 2.2), (3.0, 2.2)], **cs)
     line([(9.65, 7.4), (9.65, 2.6), (9.4, 2.6)], **cs)
     bx.text(3.62, 7.25, "charge / discharge,\ngenerators on / off", fontsize=5.4, color=OI["blue"], va="top")
     bx.text(9.55, 7.25, "shed only\nif needed", fontsize=5.4, color=OI["blue"], va="top", ha="right")
     bx.text(6.6, -0.55, "Recommended size (Phase 4); diesel plant\nas reported by INL (2025)", ha="center",
             fontsize=5.2, color="0.4", va="center")
-    bx.text(-0.05, 10.3, "B", fontsize=11, fontweight="bold", va="bottom")
+    fig.text(0.535, 0.965, "B", fontsize=11, fontweight="bold", va="top")
     style.save(fig, FIG / "figa_site_system")
     pd.DataFrame(rows).to_csv(OUT / "figa_storms.csv", index=False)
 
