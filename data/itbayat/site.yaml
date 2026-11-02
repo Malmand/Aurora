@@ -50,6 +50,28 @@ values:
     {value: 0.30, unit: fraction of unit rating, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [0.25, 0.40], note: "Typical genset minimum loading; replace with INL or NPC-SPUG figure."}
 
+  diesel_units_available:
+    {value: 3, unit: units, source: INL2025, date: 2025-01-30, confidence: medium, status: computed,
+     note: "4 units minus the one out of service."}
+  diesel_unit_kw_assumed:
+    {value: 186.7, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [140, 260], note: "Unit ratings are missing. Twin splits the 560 kW available equally over the 3 working units."}
+  diesel_fuel_noload_l_per_h_per_kw:
+    {value: 0.04, unit: L/h per kW of committed rating, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.02, 0.08], note: "Linear fuel curve F = a * P_rated * on + b * P. With b = 0.22 this gives 0.277 L/kWh at 70 % loading, the team case value."}
+  diesel_fuel_slope_l_per_kwh:
+    {value: 0.22, unit: L/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.20, 0.25], note: "Incremental fuel use of the linear fuel curve."}
+  diesel_sfc_team_l_per_kwh:
+    {value: 0.277, unit: L/kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.25, 0.33], note: "Team case flat fuel rate, labelled there as an NPC-SPUG rate without a document. Used only to size the assumed fuel tank."}
+  diesel_start_cost_php:
+    {value: 300, unit: PHP per start, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 1000], note: "Wear cost per unit start in the MPC objective; stops unit cycling."}
+  co2_kg_per_l:
+    {value: 2.68, unit: kg CO2/L, source: IPCC2006, date: 2006, confidence: high, status: computed,
+     note: "74,100 kg CO2/TJ x 43.0 TJ/Gg (IPCC 2006 defaults for gas/diesel oil) x 0.84 kg/L density (ASSUMPTION). Check table pages. [verify]"}
+
   # ---------------- demand ----------------
   peak_demand_kw:
     {value: 250, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
@@ -85,6 +107,22 @@ values:
     {value: null, unit: days, source: INL2025, date: null, confidence: low, status: missing,
      note: "Not in the INL report."}
 
+  fuel_storage_l_assumed:
+    {value: 60000, unit: L, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [30000, 90000], note: "Stands in for the missing fuel_storage_l. 2 months (INL) x 991 L/day, the diesel-only use of the 2024 synthetic load (1,306 MWh/yr x 0.277 L/kWh / 365)."}
+  resupply_interval_days_assumed:
+    {value: 30, unit: days, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [14, 60], note: "Stands in for the missing resupply_interval_days. Each delivery tops the tank up to capacity."}
+  overdue_resupply_days_assumed:
+    {value: 7, unit: days, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [3, 14], note: "When a tanker is overdue, the MPC plans as if it arrives this many days from now (rolling)."}
+  php_per_usd:
+    {value: 56, unit: PHP/USD, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [50, 60], note: "Exchange rate used by the team case study."}
+  co2_shadow_price_php_per_t:
+    {value: 2800, unit: PHP/t CO2, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 5600], note: "Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight."}
+
   # ---------------- grid ----------------
   distribution_voltage_kv:
     {value: 0.48, unit: kV, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
@@ -102,9 +140,42 @@ values:
      note: "Illustrative size from the team case study."}
   battery_kwh_case:
     {value: 1500, unit: kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION}
+  battery_kw_case:
+    {value: 375, unit: kW, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [300, 750], note: "Battery power of the team case study (0.25 C)."}
   cest_reserve_soc:
     {value: 0.30, unit: fraction, source: BRIEF, date: null, confidence: medium, status: ASSUMPTION,
      note: "CEST definition: SOC reserve floor. Design choice, not a site fact."}
+
+  # ---------------- battery and controller settings (digital twin, Phase 3) ----------------
+  # Design and planning values, not site facts. All ASSUMPTION with a range for Phase 4.
+  battery_eta_oneway:
+    {value: 0.95, unit: fraction, source: ASSUMPTION, date: null, confidence: medium, status: ASSUMPTION,
+     range: [0.92, 0.97], note: "Charge and discharge efficiency each (round trip about 0.90)."}
+  battery_soc_min:
+    {value: 0.20, unit: fraction, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.10, 0.30], note: "Hard lower SOC limit (team case value). The CEST reserve (0.30) sits above it."}
+  battery_soc_max:
+    {value: 0.95, unit: fraction, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.90, 1.00]}
+  battery_soc_initial:
+    {value: 0.60, unit: fraction, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.30, 0.95], note: "SOC at the start of a run."}
+  battery_degradation_php_per_kwh:
+    {value: 4.0, unit: PHP/kWh of charge or discharge, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [2.0, 8.0], note: "450 USD/kWh replacement (team case) / (4,000 cycles x 0.8 depth x 2 directions) x 56 PHP/USD = 3.9 PHP/kWh."}
+  voll_flex_php_per_kwh:
+    {value: 150, unit: PHP/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [50, 500], note: "Penalty for shedding flexible load. Above the diesel cost (about 30 PHP/kWh) so shedding is a last resort."}
+  risk_penalty_php_per_kwh:
+    {value: 50, unit: PHP/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 200], note: "Weight on the expected critical energy shortfall if diesel stopped (Monte Carlo), averaged over the horizon."}
+  risk_window_h:
+    {value: 24, unit: h, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [12, 48], note: "Window over which R(t) counts a critical shortfall with diesel off."}
+  fuel_scarcity_penalty_php_per_kwh:
+    {value: 500, unit: PHP/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [200, 2000], note: "Penalty on critical energy that fuel plus battery at the horizon end cannot cover until the expected delivery. Above voll_flex so flexible load is shed first."}
 
   # ---------------- critical loads (synthetic load model) ----------------
   # No public measurements. Ratings are planning assumptions; Phase 4 runs +-50 %.
