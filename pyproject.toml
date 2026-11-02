@@ -15,6 +15,9 @@ dependencies = [
   "requests>=2.28",
   "matplotlib>=3.7",
   "pvlib>=0.10",
+  "scipy>=1.10",
+  "pulp>=2.8,<4",      # PuLP 4 changed the modelling API
+  "highspy>=1.7",      # HiGHS MILP solver used through PuLP
 ]
 
 [project.optional-dependencies]
