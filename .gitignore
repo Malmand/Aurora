@@ -4,3 +4,7 @@ __pycache__/
 .ipynb_checkpoints/
 data/raw/
 .env
+*.egg-info/
+.pytest_cache/
+# download cache of scripts/download_itbayat.py (raw_small/ is the committed input set)
+data/itbayat/raw/

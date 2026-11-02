@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aurora"
+version = "0.1.0"
+description = "AURORA: forecast-driven, resilience-aware energy management for remote diesel-backed solar microgrids (Itbayat case study)"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "pyarrow>=12",
+  "pyyaml>=6",
+  "requests>=2.28",
+  "matplotlib>=3.7",
+  "pvlib>=0.10",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+download = ["cdsapi>=0.7", "xarray>=2023.1", "netCDF4>=1.6"]
+
+[tool.setuptools.packages.find]
+include = ["aurora*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

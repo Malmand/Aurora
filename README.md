@@ -10,11 +10,26 @@ This is Mohamed Al-Mandhari's individual development repository for the AURORA p
 
 | Phase | What | Status |
 |---|---|---|
-| 1 | Itbayat site data, weather, typhoon tracks, validation | Planned |
-| 2 | Probabilistic solar and demand forecast (P10/P50/P90, 48 h) | Planned |
+| 1 | Itbayat site data, weather, typhoon tracks, validation | Done: inputs in `data/itbayat/raw_small/`, 18 site values verified, 4 still missing (see `SOURCES.md`) |
+| 2 | Probabilistic solar and demand forecast (P10/P50/P90, 48 h) | Next: NWP inputs downloaded (ECMWF from Feb 2024; GFS, ICON, JMA from 2022) |
 | 3 | Digital twin with MILP rolling-horizon MPC and CEST | Planned |
 | 4 | Year runs, real typhoon weeks, value of forecasting, sizing | Planned |
 | 5 | Figures, results summary, slide and video content | Planned |
 | 6 | Operator screen (optional) | Planned |
 
 Details: [`docs/CLOUD_BRIEF.md`](docs/CLOUD_BRIEF.md).
+
+## Quick start
+
+```bash
+pip install -e ".[dev,download]"
+python scripts/download_itbayat.py           # all external inputs -> data/itbayat/raw_small/ (run locally)
+python scripts/download_itbayat.py --source cds   # same, with ERA5 from the Copernicus CDS (~/.cdsapirc)
+python -m aurora.data.build_itbayat          # rebuild all Phase 1 site data from raw_small/ (no network)
+python -m aurora.data.build_itbayat --load plant_log.csv   # use real plant logs instead of the synthetic load
+pytest
+```
+
+Phase 1 outputs live in [`data/itbayat/`](data/itbayat/): `site.yaml` and `SOURCES.md` (every site number with its source and status), the downloaded inputs in `raw_small/` (ERA5, satellite radiation, NASA POWER, IBTrACS, and previous-run NWP forecasts for Phase 2), IBTrACS typhoon flags and events, and the **synthetic** hourly load. The validation report is [`docs/validation_site.md`](docs/validation_site.md).
+
+None of the weather products is a measurement. ERA5 is a reanalysis; the satellite and NASA POWER series are retrievals. The load is synthetic until plant logs are available.
