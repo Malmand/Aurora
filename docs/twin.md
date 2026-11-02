@@ -47,7 +47,16 @@ Fuel use of n committed units producing P kW over one hour is F = a P_u n + b P.
 
 - **A, diesel only.** The status quo. No PV, no battery, fewest units that carry the load.
 - **B, simple rule.** PV and battery, no forecast. Solar serves the load, any surplus charges the battery, and a deficit is drawn from the battery down to its 20 % floor before diesel starts.
-- **C, AURORA MPC.** A MILP over a 48 h horizon on the forecast. C applies the first hour, then re-solves.
+- **C, AURORA MPC.** A MILP on the forecast. C applies the first hour, then re-solves. The horizon ends where the newest issued forecast ends (next section).
+
+### Horizon: aligned to the forecast issue
+
+Phase 2 issues one 48 h forecast a day, at 00:00 PHT (16:00 UTC). With a fixed 48 h horizon, every plan made after the issue hour runs past the end of that issue, and the missing tail (1 to 23 h) has to come from the persistence fallback. By default the twin now sets the horizon at step t to the end of the newest issue: H(t) = issue_end − t, capped at 48 h. It is 48 h at the issue hour and falls by one hour per step to 25 h just before the next issue, so no plan uses the fallback tail (`simulate.plan_horizon`, `--horizon-mode issue`).
+
+- The perfect and persistence providers have no issue cycle of their own. They use the same daily 16:00 UTC, 48 h cycle, so value-of-forecasting runs differ in the forecast only, not in the horizon.
+- If an issue was missed (comms down), the newest issue ends less than 25 h ahead. The horizon then stays at 48 h and the fallback fills the tail, flagged `fallback=True`.
+- `--horizon-mode fixed` keeps the old fixed 48 h horizon (`--horizon` sets the length).
+- Each hourly row records `horizon_h` and `plan_fallback_h` (fallback hours in that step's plan). The KPIs add `horizon_mean_h`, `plans_with_fallback_pct` and `plan_fallback_h_mean`.
 
 ### MILP (`mpc.py`)
 
@@ -83,34 +92,34 @@ C_need,k is the critical deficit (P90 critical minus P10 solar, last forecast da
 
 ## CEST (`cest.py`)
 
-CEST counts the hours that critical load can run on the battery plus forecast P10 solar, with diesel and flexible load off, before SOC reaches the 30 % reserve. Critical demand is taken at P90. Beyond the 48 h forecast, the last 24 h are repeated, and values above 72 h are reported as 72 h (censored). The battery's power limits apply to both charge and discharge. All controllers are scored with the same forecast, so their CEST values are comparable. Controller A has no battery, so its CEST is 0 by definition.
+CEST counts the hours that critical load can run on the battery plus forecast P10 solar, with diesel and flexible load off, before SOC reaches the 30 % reserve. Critical demand is taken at P90. Beyond the end of the plan window (25 to 48 h), its last 24 h are repeated, and values above 72 h are reported as 72 h (censored). The battery's power limits apply to both charge and discharge. All controllers are scored with the same forecast, so their CEST values are comparable. Controller A has no battery, so its CEST is 0 by definition.
 
 ## Forecast providers (`forecasts.py`)
 
 - `PerfectForecast`: truth with zero spread. This is the upper bound for the value-of-forecasting runs.
 - `PersistenceForecast`: the twin's own baseline, used until Phase 2 lands. P50 is daily smart persistence of the clear-sky index (PV over the last 24 h divided by clear-sky PV). P10 and P90 come from the daily clear-sky index of the last 30 days. Load uses the same hour of the last observed day, with ±2 % bands on critical and ±10 % on flexible. It uses only data from before the issue time.
 - `CSVForecast(folder)`: reads the Phase 2 output files, one CSV per issue time. At each step it uses the newest issue at or before that step. Any hours that issue does not cover come from persistence with 1.5× wider bands and `fallback=True`, which also covers the case where comms are down.
-- `Phase2Forecast` (`--forecast phase2`): reads the Phase 2 backtest straight from `data/itbayat/forecast/` (`backtest_solar.parquet`, `backtest_demand.parquet`; every daily 00:00 PHT issue from 2022 to Oct 2026). Solar is stored in kW per kWp, so it fits either sizing. The files are hour-ending and are shifted to step start. At each step the newest issue at or before it is used; hours past that issue's 48 h (up to 23 h at the end of the horizon) come from the persistence fallback with 1.5× bands and `fallback=True`, as for `CSVForecast`. `--forecast phase2:nwp` and `phase2:persistence` replace the solar bands with the raw NWP mean or Phase 2 smart persistence (zero spread) for the value-of-forecasting runs. 2022 to 2023 use the reduced Phase 2 model (no archived NWP GHI), and `phase2:nwp` has no NWP solar there, so it falls back to persistence.
+- `Phase2Forecast` (`--forecast phase2`): reads the Phase 2 backtest straight from `data/itbayat/forecast/` (`backtest_solar.parquet`, `backtest_demand.parquet`; every daily 00:00 PHT issue from 2022 to Oct 2026). Solar is stored in kW per kWp, so it fits either sizing. The files are hour-ending and are shifted to step start. At each step the newest issue at or before it is used. With the default issue-aligned horizon the plan ends with that issue. With `--horizon-mode fixed`, hours past the issue's 48 h (up to 23 h at the end of the horizon) come from the persistence fallback with 1.5× bands and `fallback=True`, as for `CSVForecast`. `--forecast phase2:nwp` and `phase2:persistence` replace the solar bands with the raw NWP mean or Phase 2 smart persistence (zero spread) for the value-of-forecasting runs. 2022 to 2023 use the reduced Phase 2 model (no archived NWP GHI), and `phase2:nwp` has no NWP solar there, so it falls back to persistence.
 - `--forecast csv` reads the Phase 2 sample CSVs in `data/itbayat/forecast/issues/` (written for 300 kWp and rescaled to the run's array). They carry `time_label = end`, so the reader shifts them to step start.
 
 ## Demonstration: typhoon Mawar (Betty), late May 2023
 
-`python -m aurora.twin.run --demo`. The windows start on 27 May 2023, 00:00 PHT, with ERA5 weather and the synthetic load. Mawar passed 329 km from Itbayat on 30 May. The forecast is the twin's persistence baseline. Stress assumption: the tank holds 6,000 L (10 %) when the tanker due on 28 May is delayed. Two delays are run: 7 days (tanker arrives 4 June, window 11 days) and 14 days (tanker arrives 11 June, window 18 days). Each window ends 3 days after the arrival. Phase 4 runs the full set (Sep 2022 and Betty, delays of 3, 7 and 14 days, value of forecasting).
+`python -m aurora.twin.run --demo`. The windows start on 27 May 2023, 00:00 PHT, with ERA5 weather and the synthetic load. Mawar passed 329 km from Itbayat on 30 May. The forecast is the twin's persistence baseline, and the MPC horizon follows its daily issue cycle (25 to 48 h, mean 36.5 h). Stress assumption: the tank holds 6,000 L (10 %) when the tanker due on 28 May is delayed. Two delays are run: 7 days (tanker arrives 4 June, window 11 days) and 14 days (tanker arrives 11 June, window 18 days). Each window ends 3 days after the arrival. Phase 4 runs the full set (Sep 2022 and Betty, delays of 3, 7 and 14 days, value of forecasting).
 
 | Delay | Sizing | Ctl | Critical outage (h) | Critical unserved (kWh) | Flex shed (kWh) | Diesel (L) | CEST median (h) | CEST ≥ 12 h (%) | Mean R | Tank min (L) |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 7 d | inl | A | 49 | 2,419 | 4,984 | 8,975 | 0.0 | 0.0 | 1.00 | 0 |
 | 7 d | inl | B | 0 | 0 | 0 | 7,387 | 0.0 | 0.4 | 0.89 | 437 |
-| 7 d | inl | C | 0 | 0 | 3,013 | 6,265 | 4.9 | 18.9 | 0.73 | 1,491 |
+| 7 d | inl | C | 0 | 0 | 2,649 | 6,392 | 4.9 | 18.2 | 0.74 | 1,356 |
 | 7 d | case | A | 49 | 2,419 | 4,984 | 8,975 | 0.0 | 0.0 | 1.00 | 0 |
 | 7 d | case | B | 0 | 0 | 0 | 4,588 | 0.0 | 28.8 | 0.55 | 2,425 |
-| 7 d | case | C | 0 | 0 | 0 | 4,680 | 72.0 | 86.0 | 0.07 | 2,307 |
+| 7 d | case | C | 0 | 0 | 0 | 4,660 | 72.0 | 88.3 | 0.06 | 2,307 |
 | 14 d | inl | A | 217 | 10,763 | 21,861 | 8,948 | 0.0 | 0.0 | 1.00 | 0 |
 | 14 d | inl | B | 89 | 3,104 | 10,488 | 8,446 | 0.0 | 0.2 | 0.90 | 0 |
-| 14 d | inl | C | 0 | 0 | 12,673 | 8,386 | 4.8 | 13.7 | 0.77 | 0 |
+| 14 d | inl | C | 0 | 0 | 12,814 | 8,381 | 4.8 | 13.0 | 0.77 | 0 |
 | 14 d | case | A | 217 | 10,763 | 21,861 | 8,948 | 0.0 | 0.0 | 1.00 | 0 |
 | 14 d | case | B | 2 | 70 | 356 | 8,088 | 0.0 | 26.6 | 0.57 | 0 |
-| 14 d | case | C | 0 | 0 | 0 | 8,063 | 72.0 | 84.3 | 0.07 | 16 |
+| 14 d | case | C | 0 | 0 | 0 | 8,042 | 72.0 | 86.6 | 0.07 | 6 |
 
 Source: `results/twin/demo_mawar2023_kpis.csv`. The hourly runs are in `results/twin/demo_mawar2023_delay{7,14}d_{inl,case}/run_{A,B,C}.csv`. A has no PV or battery, so its row is the same for both sizings.
 
@@ -118,11 +127,30 @@ What this shows, and what it does not:
 
 - **Diesel only runs dry.** A runs out of fuel about 6 days into the delay. That means 49 h of critical outage with a 7-day delay and 217 h with a 14-day delay.
 - **B loses critical load when the delay is long.** With the 14-day delay, B empties the tank and loses critical load for 89 h at INL sizing and 2 h at case sizing. C serves all critical load in both cases, from the same fuel.
-- **INL sizing, 7-day delay.** C sheds no flexible load for the first 3 days of the delay (previously it shed from the first day). It starts on 31 May, when the 3-day scenario has passed and the belief is 0.4 for a 14-day delay, because 0.4 × 500 > 150 PHP/kWh. The tanker then arrived on day 7, so in hindsight the 3,013 kWh shed was insurance that was not needed. This is the price of the hedge that keeps critical load served in the 14-day run. The trade-off is set by the delay weights and the two penalties, which Phase 4 should sweep. C also uses 15 % less diesel than B here.
-- **INL sizing, 14-day delay.** C sheds more flexible load than B (12,673 vs 10,488 kWh) but trades 89 h of critical outage for none. The tank reaches 0 L just before the tanker arrives.
-- **Case sizing.** The larger battery and PV carry both delays without shedding. Fuel is about the same for B and C (+2 % at 7 days, −0.3 % at 14 days). C keeps the battery charged, so median CEST is 72 h (censored) against 0 h for B, and mean R is 0.07 against 0.55 to 0.57.
+- **INL sizing, 7-day delay.** C sheds no flexible load for the first 3 days of the delay (previously it shed from the first day). It starts on 31 May, when the 3-day scenario has passed and the belief is 0.4 for a 14-day delay, because 0.4 × 500 > 150 PHP/kWh. The tanker then arrived on day 7, so in hindsight the 2,649 kWh shed was insurance that was not needed. This is the price of the hedge that keeps critical load served in the 14-day run. The trade-off is set by the delay weights and the two penalties, which Phase 4 should sweep. C also uses 13 % less diesel than B here.
+- **INL sizing, 14-day delay.** C sheds more flexible load than B (12,814 vs 10,488 kWh) but trades 89 h of critical outage for none. The tank reaches 0 L just before the tanker arrives.
+- **Case sizing.** The larger battery and PV carry both delays without shedding. Fuel is about the same for B and C (+2 % at 7 days, −0.6 % at 14 days). C keeps the battery charged, so median CEST is 72 h (censored) against 0 h for B, and mean R is 0.06 to 0.07 against 0.55 to 0.57.
 - With a 300 kWh battery, CEST stays short (median about 5 h for C), because 195 kWh above the reserve covers about 5 h of critical load at night (35 kW) and less in the evening (49 to 65 kW).
 - This is one storm, one assumed tank level and the persistence forecast. These numbers show the twin works. They are not the headline results, which come from Phase 4.
+
+## Horizon comparison: issue-aligned vs fixed 48 h
+
+`python -m aurora.twin.run --horizon-compare`. Same Mawar window and stress test as the 7-day demo (tank 6,000 L, tanker due 28 May arrives 4 June, 11 days), controller C, but with the Phase 2 forecast (`--forecast phase2`), where the fixed horizon needs the fallback tail. Each case is run with the issue-aligned horizon (the default) and with a fixed 48 h horizon.
+
+| Sizing | Horizon | Mean horizon (h) | Plans with fallback hours (%) | Fallback hours per plan | Critical outage (h) | Flex shed (kWh) | Diesel (L) | CEST median (h) | CEST ≥ 12 h (%) | Mean R | Tank min (L) |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| inl | issue | 36.5 | 0.0 | 0.0 | 0 | 1,718 | 6,498 | 5.3 | 22.3 | 0.73 | 1,206 |
+| inl | fixed 48 h | 48.0 | 95.8 | 11.5 | 0 | 2,007 | 6,401 | 5.1 | 22.3 | 0.74 | 1,298 |
+| case | issue | 36.5 | 0.0 | 0.0 | 0 | 0 | 4,483 | 72.0 | 87.9 | 0.07 | 2,505 |
+| case | fixed 48 h | 48.0 | 95.8 | 11.5 | 0 | 0 | 4,454 | 72.0 | 90.5 | 0.05 | 2,505 |
+
+Source: `results/twin/horizon_compare_mawar2023_kpis.csv`; hourly runs in `results/twin/horizon_compare_mawar2023_{issue,fixed}_{inl,case}/run_C.csv`.
+
+- With the fixed horizon, 23 of every 24 plans end with fallback hours (11.5 h on average). With the issue-aligned horizon none do.
+- Neither setting loses critical load.
+- INL sizing: the issue-aligned horizon sheds 14 % less flexible load (1,718 vs 2,007 kWh) and starts shedding on 1 June instead of 31 May. It burns 1.5 % more diesel (6,498 vs 6,401 L). A likely reason, not tested here: the fallback tail has 1.5× wider bands, so the fixed-horizon plans see more risk at the end of the window and shed earlier.
+- Case sizing: the two settings are within 1 % on diesel. CEST ≥ 12 h is 90.5 % with the fixed horizon and 87.9 % with the issue-aligned one. CEST is computed on each step's plan window, so the two settings score it on slightly different inputs.
+- The effect on the totals is small. The main gain is that every plan now rests on the issued forecast, not on a persistence tail that is labelled fallback.
 
 ## Run time
 
@@ -153,7 +181,7 @@ Every value is in `data/itbayat/site.yaml`, with its range listed in `SOURCES.md
 | `fuel_scarcity_penalty_php_per_kwh` | 500 PHP/kWh | Fuel autonomy term |
 | `php_per_usd` | 56 | Team case exchange rate |
 
-Fixed model settings in code: 48 h horizon, 64 scenarios in 16 groups, AR(1) correlations of 0.9 (solar) and 0.95 (demand), CEST cap of 72 h, 0.5 % MIP gap.
+Fixed model settings in code: horizon aligned to the forecast issue (25 to 48 h; fixed 48 h as an option), 64 scenarios in 16 groups, AR(1) correlations of 0.9 (solar) and 0.95 (demand), CEST cap of 72 h, 0.5 % MIP gap.
 
 ## Limitations
 

@@ -32,5 +32,9 @@ def kpis(run: pd.DataFrame, p) -> dict:
         tank_min_l=round(float(run["tank_end"].min()), 0),
         relaxed_steps=int(run["relaxed"].sum()),
         fallback_steps=int(run["fallback"].sum()),
+        horizon_mean_h=round(float(run["horizon_h"].mean()), 1) if "horizon_h" in run else np.nan,
+        plans_with_fallback_pct=round(100 * float((run["plan_fallback_h"] > 0).mean()), 1)
+        if "plan_fallback_h" in run else np.nan,
+        plan_fallback_h_mean=round(float(run["plan_fallback_h"].mean()), 1) if "plan_fallback_h" in run else np.nan,
         max_balance_resid_kw=float(run["balance_resid"].abs().max()),
     )

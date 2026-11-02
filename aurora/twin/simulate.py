@@ -27,9 +27,34 @@ def default_schedule(p, start) -> plant.FuelSchedule:
                               first=start + pd.Timedelta(days=p.resupply_days / 2))
 
 
+HORIZON_MODES = ("issue", "fixed")
+MIN_ISSUE_HORIZON_H = 25    # shortest plan inside a daily 48 h issue
+
+
+def plan_horizon(forecast, t, max_h: int = 48, mode: str = "issue") -> int:
+    """MPC horizon at step t.
+
+    "fixed": always max_h. "issue": hours from t to the end of the newest issued
+    forecast (forecast.issue_end), capped at max_h, so no plan hour comes from the
+    persistence fallback tail. If the provider has no issue, or the newest issue
+    ends less than MIN_ISSUE_HORIZON_H ahead (an issue was missed, comms down),
+    the horizon stays at max_h and the fallback fills the tail, flagged.
+    """
+    if mode not in HORIZON_MODES:
+        raise ValueError(f"horizon mode {mode!r}; use one of {HORIZON_MODES}")
+    if mode == "fixed":
+        return max_h
+    end_fn = getattr(forecast, "issue_end", None)
+    end = end_fn(t) if end_fn else None
+    if end is None:
+        return max_h
+    h = int((end - t) // pd.Timedelta(hours=1))
+    return min(max_h, h) if h >= MIN_ISSUE_HORIZON_H else max_h
+
+
 def run(truth: pd.DataFrame, p, controller: str, forecast, start=None, hours=None,
         schedule: plant.FuelSchedule | None = None, tank0: float | None = None,
-        horizon: int = 48, n_scen_risk: int = 64, seed: int = 2026, progress: bool = False,
+        horizon: int = 48, horizon_mode: str = "issue", n_scen_risk: int = 64, seed: int = 2026, progress: bool = False,
         **ctrl_kw) -> pd.DataFrame:
     idx = truth.index
     i0 = 0 if start is None else idx.get_loc(utc(start))
@@ -50,7 +75,8 @@ def run(truth: pd.DataFrame, p, controller: str, forecast, start=None, hours=Non
         r = truth.iloc[i0 + k]
         actual = dict(solar=float(r.pv_kw_per_kwp * p.pv_kwp) if ctl.has_pv else 0.0,
                       crit=float(r.crit_kW), flex=float(r.flex_kW))
-        fc = forecast(t, horizon)
+        H = plan_horizon(forecast, t, horizon, horizon_mode)
+        fc = forecast(t, H)
         if not ctl.has_pv:
             fc = fc.assign(solar_kW_p10=0.0, solar_kW_p50=0.0, solar_kW_p90=0.0)
         state = dict(soc=soc, tank=tank, n_prev=n_prev)
@@ -73,11 +99,13 @@ def run(truth: pd.DataFrame, p, controller: str, forecast, start=None, hours=Non
         soc = out["soc_end"]
         n_prev = out["n_on"]
         rows.append(dict(timestamp=t, **out, cest_h=c, risk=risk, fallback=bool(fc["fallback"].iloc[0]),
+                         horizon_h=H, plan_fallback_h=int(fc["fallback"].sum()),
                          relaxed=dec.note == "relaxed", plan_shed=dec.shed_flex))
         if progress and k % 168 == 0:
             print(f"  {controller} {t:%Y-%m-%d %H}h  step {k}/{n_steps}  {time.time() - t_wall:.0f}s", flush=True)
     df = pd.DataFrame(rows).set_index("timestamp")
     df.attrs.update(controller=controller, sizing=p.sizing, forecast=getattr(forecast, "name", "?"),
+                    horizon_mode=horizon_mode, horizon_max_h=horizon,
                     deliveries=str([(str(a), str(b), round(v)) for a, b, v in tank.log]),
                     wall_s=f"{time.time() - t_wall:.1f}")
     return df
