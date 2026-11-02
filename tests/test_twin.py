@@ -202,3 +202,47 @@ def test_params_use_inl_current_state_and_both_sizings():
     assert P.diesel_php_per_l == 113
     c = params.from_site("case")
     assert (P.pv_kwp, P.bat_kwh) == (300, 300) and (c.pv_kwp, c.bat_kwh) == (500, 1500)
+
+
+# ---------------------------------------------------------------- Phase 2 provider
+def test_phase2_forecast_reads_backtest(tmp_path):
+    """Hour-ending Phase 2 parquets -> step-start frames; night zero; tail from fallback."""
+    tr = synthetic_truth(days=3)
+    it = tr.index[0] + pd.Timedelta(hours=2)
+    w_end = pd.date_range(it + pd.Timedelta(hours=1), periods=48, freq="h")   # hour-ending
+    day = w_end[[i for i in range(48) if 6 <= i % 24 < 18]]
+    sol = pd.DataFrame({"issue_time": it, "pv_kw_per_kwp_p10": 0.1, "pv_kw_per_kwp_p50": 0.2,
+                        "pv_kw_per_kwp_p90": 0.3, "pv_kw_per_kwp_nwp_mean": 0.25,
+                        "pv_kw_per_kwp_persist": 0.15}, index=pd.DatetimeIndex(day, name="timestamp"))
+    dem = pd.DataFrame({"issue_time": it, **{f"{c}_{q}": v for c in ("critical", "flex")
+                                             for q, v in zip(("p10", "p50", "p90"), (1.0, 2.0, 3.0))}},
+                       index=pd.DatetimeIndex(w_end, name="timestamp"))
+    sol.to_parquet(tmp_path / "backtest_solar.parquet")
+    dem.to_parquet(tmp_path / "backtest_demand.parquet")
+    f = forecasts.Phase2Forecast(tr, 100.0, folder=tmp_path)
+    fc = f(it, 48)
+    assert list(fc.columns[:-1]) == forecasts.COLS and not fc["fallback"].any()
+    first_day_step = day[0] - pd.Timedelta(hours=1)                     # step start of the first daylight hour
+    assert fc.loc[first_day_step, "solar_kW_p50"] == pytest.approx(20.0)
+    assert fc.loc[it, "solar_kW_p50"] == 0.0                              # night hour, not stored
+    assert (fc["demand_flex_kW_p90"] == 3.0).all()
+    late = f(it + pd.Timedelta(hours=10), 48)                             # last 10 h past the issue window
+    assert late["fallback"].sum() == 10 and not late["fallback"].iloc[0]
+    nwp = forecasts.Phase2Forecast(tr, 100.0, "nwp", folder=tmp_path)(it, 48)
+    assert nwp.loc[first_day_step, ["solar_kW_p10", "solar_kW_p90"]].tolist() == pytest.approx([25.0, 25.0])
+
+
+def test_phase2_csv_is_read_at_step_start(tmp_path):
+    """The Phase 2 CSV writer labels hour-ending rows; the twin reader must shift them back."""
+    from aurora.forecast import operational as O
+
+    it = pd.Timestamp("2025-07-01 16:00", tz="UTC")
+    w = O.window(it)
+    dem = pd.DataFrame({"issue_time": it, **{f"{c}_{q}": 1.0 for c in ("critical", "flex")
+                                             for q in ("p10", "p50", "p90")}}, index=w)
+    sol = pd.DataFrame({"issue_time": it, "pv_kw_per_kwp_p10": 0.1, "pv_kw_per_kwp_p50": 0.2,
+                        "pv_kw_per_kwp_p90": 0.3}, index=w[[10]])
+    O.write_csv(O.from_backtest(sol, dem, it, pv_kwp=100), out_dir=tmp_path)
+    fc = forecasts.read_forecast_csv(next(tmp_path.glob("*.csv")))
+    assert fc.index[0] == it and len(fc) == 48
+    assert fc.loc[w[10] - pd.Timedelta(hours=1), "solar_kW_p50"] == pytest.approx(20.0)

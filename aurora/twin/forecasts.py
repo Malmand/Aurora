@@ -14,6 +14,9 @@ Providers:
   CSVForecast          Phase 2 output files (one CSV per issue time); falls back to
                        PersistenceForecast with widened bands and fallback=True
                        when no issue covers t.
+  Phase2Forecast       the Phase 2 backtest in data/itbayat/forecast/ (every daily
+                       issue, 2022 to Oct 2026), read directly; solar scaled to the
+                       run's array. Variants: AURORA bands, raw NWP mean, persistence.
 The CSV loader is ported from digital_twin/forecast_io.py (team repo, Mohamed):
 time column names, time zones, _p10/_p90 or _low/_high band names.
 """
@@ -186,3 +189,75 @@ class CSVForecast:
         fc.loc[miss, COLS] = fb.loc[miss, COLS]
         fc["fallback"] = fc["fallback"].where(~miss, True).astype(bool)
         return fc
+
+
+class Phase2Forecast:
+    """Phase 2 forecasts read directly from data/itbayat/forecast/.
+
+    Files: backtest_solar.parquet (PV in kW per kWp DC, so any array size works)
+    and backtest_demand.parquet, both written by ``python -m aurora.forecast.build``.
+    Their timestamps are hour-ending; here they are shifted to step start.
+
+    At step t the newest daily issue with issue_time <= t is used (issues at
+    16:00 UTC = 00:00 PHT, 48 h each). Solar hours inside the issue window but
+    absent from the file are night hours (zero). Hours past the issue's 48 h
+    (up to 23 h at the end of a 48 h horizon), or with no forecast at all, come
+    from the persistence fallback with 1.5x bands and fallback=True, as in
+    CSVForecast.
+
+    variant:
+      "aurora"       P10/P50/P90 from the AURORA quantile model (default)
+      "nwp"          raw NWP mean converted to PV, zero spread
+      "persistence"  Phase 2 smart persistence (satellite k) converted to PV, zero spread
+    Demand bands are the Phase 2 demand forecast in every variant (SYNTHETIC load
+    unless plant logs were used).
+    """
+
+    VARIANTS = {"aurora": ("p10", "p50", "p90"), "nwp": ("nwp_mean",) * 3, "persistence": ("persist",) * 3}
+
+    def __init__(self, truth: pd.DataFrame, pv_kwp: float, variant: str = "aurora", folder=None):
+        from ..data import paths
+
+        if variant not in self.VARIANTS:
+            raise ValueError(f"unknown Phase 2 variant {variant!r}; use one of {sorted(self.VARIANTS)}")
+        folder = Path(folder) if folder else paths.SITE_DIR / "forecast"
+        sp, dp = folder / "backtest_solar.parquet", folder / "backtest_demand.parquet"
+        if not sp.exists() or not dp.exists():
+            raise FileNotFoundError(f"{folder}: no Phase 2 backtest; run python -m aurora.forecast.build")
+        self.name = "phase2" if variant == "aurora" else f"phase2_{variant}"
+        step = pd.Timedelta(hours=1)
+        src = self.VARIANTS[variant]
+        so = pd.read_parquet(sp, columns=["issue_time"] + sorted({f"pv_kw_per_kwp_{c}" for c in src}))
+        so.index = so.index - step
+        so = so.set_index("issue_time", append=True)
+        sol = pd.DataFrame({f"solar_kW_{q}": so[f"pv_kw_per_kwp_{c}"] * pv_kwp for q, c in zip(Q, src)})
+        dm = pd.read_parquet(dp, columns=["issue_time"] + [f"{c}_{q}" for c in ("critical", "flex") for q in Q])
+        dm.index = dm.index - step
+        dm = dm.set_index("issue_time", append=True)
+        dem = pd.DataFrame({f"demand_{c}_kW_{q}": dm[f"{c}_{q}"] for c in ("critical", "flex") for q in Q})
+        self.by_issue = {}
+        issues = sorted(set(dem.index.get_level_values(1)) | set(sol.index.get_level_values(1)))
+        sol_g = dict(tuple(sol.groupby(level=1)))
+        dem_g = dict(tuple(dem.groupby(level=1)))
+        for it in issues:
+            w = pd.date_range(it, periods=48, freq="h")
+            s_ = sol_g[it].droplevel(1).reindex(w) if it in sol_g else pd.DataFrame(index=w, columns=sol.columns)
+            # night hours are not stored: zero the hours absent from the file, keep real gaps NaN
+            if it in sol_g:
+                s_.loc[~s_.index.isin(sol_g[it].droplevel(1).index)] = 0.0
+            d_ = dem_g[it].droplevel(1).reindex(w) if it in dem_g else pd.DataFrame(index=w, columns=dem.columns)
+            self.by_issue[it] = pd.concat([s_, d_], axis=1)[COLS].astype(float)
+        self.keys = pd.DatetimeIndex(sorted(self.by_issue))
+        self.fb = PersistenceForecast(truth, pv_kwp, widen=1.5, fallback=True)
+
+    def __call__(self, t, horizon: int) -> pd.DataFrame:
+        idx = pd.date_range(t, periods=horizon, freq="h")
+        fb = self.fb(t, horizon)
+        j = self.keys.searchsorted(t, side="right") - 1
+        if j < 0:
+            return fb
+        fc = self.by_issue[self.keys[j]].reindex(idx)
+        miss = fc.isna().any(axis=1)
+        fc.loc[miss, COLS] = fb.loc[miss, COLS]
+        fc["fallback"] = miss.to_numpy()
+        return monotone(fc)

@@ -5,7 +5,10 @@
         --forecast persistence --tank0 6000 --delay-days 7 --out results/twin/my_run
 
 --start is local time (PHT) at midnight unless a zone is given. --forecast is
-perfect, persistence (twin baseline) or csv:<folder> (Phase 2 output files).
+perfect, persistence (twin baseline), phase2 (the Phase 2 backtest read directly
+from data/itbayat/forecast/; phase2:nwp and phase2:persistence give the raw NWP
+mean and Phase 2 persistence for value-of-forecasting runs), csv (the Phase 2
+sample CSVs in data/itbayat/forecast/issues/) or csv:<folder> (other forecast files).
 --delay-days delays the first planned delivery after the start (stress test).
 Writes <out>/run_<ctl>.csv (hourly) and <out>/kpis.csv.
 
@@ -24,6 +27,7 @@ from ..data import paths
 from . import forecasts, inputs, metrics, params, plant, simulate
 
 OUT = paths.ROOT / "results" / "twin"
+PHASE2_CSV_KWP = 300.0   # the Phase 2 sample CSVs are written for the INL 300 kWp array
 
 
 def make_forecast(kind: str, truth, p):
@@ -31,8 +35,13 @@ def make_forecast(kind: str, truth, p):
         return forecasts.PerfectForecast(truth, p.pv_kwp)
     if kind == "persistence":
         return forecasts.PersistenceForecast(truth, p.pv_kwp)
+    if kind == "csv":
+        return forecasts.CSVForecast(paths.SITE_DIR / "forecast" / "issues", truth, p.pv_kwp,
+                                     scale_kwp=PHASE2_CSV_KWP)
     if kind.startswith("csv:"):
         return forecasts.CSVForecast(kind[4:], truth, p.pv_kwp)
+    if kind == "phase2" or kind.startswith("phase2:"):
+        return forecasts.Phase2Forecast(truth, p.pv_kwp, kind.split(":", 1)[1] if ":" in kind else "aurora")
     raise ValueError(kind)
 
 
