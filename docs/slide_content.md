@@ -54,7 +54,7 @@ Documented fuel disruptions to Batanes power:
 - The island holds about **2 months** of fuel; diesel costs about **113 PHP/L**; peak demand is about **250 kW** (INL, 2025).
 - Off-grid power already costs NPC **3 to 4 times** the tariff it charges (Philstar, 29 May 2026).
 
-Figure: `figa_site_system.png`, panel A (storm tracks around Itbayat and the fuel route from Bolinao).
+Figure: `figa_site_system.png`, panel A (map of the Luzon Strait with the three storm tracks, the 300 and 500 km rings around Itbayat, the schematic fuel route from Bolinao and an inset of the Batanes islands).
 
 Speaker note: a diesel-only island has no buffer. When the tank is empty, the clinic, the water pumps and the phone tower go dark together.
 
@@ -81,7 +81,7 @@ Figure: `figa_site_system.png`, panel B (system overview with the AURORA layer).
 - **A forecast that beats its inputs.** Solar forecast error is 11 % (day 1) and 8 % (day 2) below ECMWF, the leading global model, and 46 to 47 % below persistence, with calibrated bands (80 % band covers 81.7 %).
 - **Honest about what it is worth.** The better forecast trims diesel and shedding only a little in storms; most of the resilience comes from fuel-aware planning.
 
-Figure: `figf_forecast_skill.png` (forecast skill by lead day) next to `figd_cest_mawar14d.png` (CEST through the storm, B against C).
+Figure: `figf_forecast_skill.png` (forecast skill by lead day) next to `figd_cest_mawar14d.png` (share of each day's hours with at least 24 h of survival time: AURORA 73 %, simple rule 26 % while the tanker is late).
 
 Sources: `docs/validation_forecast.md`; `year.csv`; `results/phase4/vof.csv`.
 
@@ -112,7 +112,7 @@ Three numbers, all from the recommended system (500 kWp solar, 375 kW / 1,000 kW
 
 Figure: `figc_outage_storms.png` (main), `fige_year_diesel_co2.png` (small).
 
-Speaker note on cost: at NPC's Sabtang bid price and a 9.94 % cost of capital, the solar and battery do not repay themselves in fuel within 20 years; at cheaper published costs they repay in about 4 years (`figh_hardware_payback.png`). NPC is building such systems anyway. AURORA's own cost buys resilience: about 25,000 to 62,000 PHP per hour of critical outage avoided in a 14-day disruption.
+Speaker note on cost: AURORA does the job of a much bigger battery. With the simple rule the same system needs 2,000 kWh of battery instead of 1,000 kWh to get close (1 h of outage instead of 0 h); that extra battery costs about 48 M PHP, AURORA about 6.8 M PHP over 20 years (`figg_sizing_sweep.png`). The solar and battery themselves break even at 68 to 98 % of NPC's Sabtang bid price (`figh_hardware_payback.png`); NPC is building such systems anyway.
 
 ---
 
@@ -125,7 +125,7 @@ Speaker note on cost: at NPC's Sabtang bid price and a 9.94 % cost of capital, t
 - The same approach fits island grids across Southeast Asia and the Pacific that face typhoons and long fuel routes.
 - Sizing: AURORA also tells planners how much battery is enough. On Itbayat, beyond 1,000 kWh at 500 kWp, extra battery stops adding resilience.
 
-Figure: `figg_sizing_sweep.png` (where extra battery stops adding survival time).
+Figure: `figg_sizing_sweep.png` (where extra battery stops adding survival time, and how much more battery the simple rule needs to match AURORA).
 
 ---
 
@@ -135,10 +135,10 @@ Figure: `figg_sizing_sweep.png` (where extra battery stops adding survival time)
 
 - The island's demand is **synthetic** (no hourly data is public); the weather is **ERA5 reanalysis**, not a measurement; there are **no field data**.
 - Fuel tank size, delivery interval and diesel unit ratings are **assumptions**; results are most sensitive to fuel in the tank when the tanker is late.
-- **Hardware economics depend on capital cost and finance**: no payback at the Sabtang price and 9.94 %, about 4 years at cheaper published costs.
+- **Hardware economics depend on capital cost and finance**: no payback at the Sabtang price and 9.94 %; break-even at 68 to 98 % of that price; about 4 years at cheaper published costs.
 - Survival time is capped at 72 h in the model.
 - What would help most: plant logs, fuel delivery records and tank size from NPC-SPUG.
 
-Figure: `figh_hardware_payback.png`.
+Figure: `figh_hardware_payback.png` (20-year NPV against installed cost, with the break-even price marked).
 
 Links: code and data repository; `docs/results_phase4.md`; `docs/results_summary.md`.
