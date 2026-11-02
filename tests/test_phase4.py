@@ -59,8 +59,9 @@ def test_aurora_cost_per_outage_hour(tmp_path, monkeypatch):
             rows += [dict(storm=st, sizing="inl", delay_days=d, controller="B", crit_outage_h=b),
                      dict(storm=st, sizing="inl", delay_days=d, controller="C", crit_outage_h=0)]
     sm, pe = T.aurora_resilience(pd.DataFrame(rows))
-    lam = T.event_rate_per_yr()[0]
     assert sm.loc[0, "avoided_h_per_event"] == pytest.approx(0.3 * 10 + 0.2 * 50)
     ann = 2.5e6 * T.crf(0.0994, 20) + 0.5e6
-    assert sm.loc[0, "cost_per_h_avoided_base_php"] == pytest.approx(ann / (lam * 13.0))
-    assert pe["cost_per_h_avoided_base_php"].isna().sum() == 2      # 3-day delay: nothing avoided
+    assert sm.loc[0, "php_per_h_avoided_rate_base_cost_base"] == pytest.approx(ann / (0.85 * 13.0))
+    assert sm.loc[0, "events_per_yr_upper_bound"] == 4.15
+    assert pe.loc[2, "php_per_h_avoided_rate_base"] == pytest.approx(ann / 0.85 / 50)
+    assert pe["php_per_h_avoided_rate_base"].isna().sum() == 2      # 3-day delay: nothing avoided

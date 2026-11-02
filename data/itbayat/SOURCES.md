@@ -41,6 +41,16 @@ Site documents:
 
 - **PHILSTAR2026** Philstar, 29 May 2026: off-grid generation costs NPC 3 to 4 times the tariff. News, used as context only. Provided by the user; [verify] URL and access date.
 
+- **NEWS_DISRUPTIONS** Documented fuel disruptions to Batanes power (news; evidence of events only; provided by the user; [verify] URL and access date for each):
+  - Philstar, 15 Sep 2009: fuel ship in dry dock.
+  - Philstar, 12 Oct 2011: no funds for diesel, Jun to Oct 2011.
+  - Manila Bulletin, 3 Sep 2022: fuel disruption, Sep 2022.
+  - GMA News, 29 May 2023, and Rappler (Jun 2023): Typhoon Betty (Mawar).
+  - Bombo Radyo Tuguegarao, 5 Aug 2023: southwest monsoon.
+  - Manila Times, 5 Aug 2025: Itbayat food and fuel shortage. [verify] not read.
+  - GMA News, Apr 2026: national diesel shortage.
+  In two of these events the tanker was stranded at Bolinao, Pangasinan, in monsoon weather (provided by the user).
+
 - **IPCC2006** IPCC (2006). *2006 IPCC Guidelines for National Greenhouse Gas Inventories*, Vol. 2 Energy, Ch. 1 (Table 1.2, net calorific values) and Ch. 2 (Table 2.2, default CO2 emission factors). IGES, Japan. https://www.ipcc-nggip.iges.or.jp/public/2006gl/vol2.html
 
 Project documents:
@@ -127,6 +137,10 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | esmap2019_minigrid_capex_median_usd_per_kw | 3900 | USD/kW | ESMAP2019 | 2019 | low | verified | Mini-grid capex median, about 3,900 USD/kW; range 1,420 to 22,689 USD/kW. Cross-check only. Provided by the user. |
 | irena2025_pv_capex_usd_per_kw | 667 | USD/kW | IRENA2025 | 2026-07 | medium | verified | Utility-scale PV, global weighted-average total installed cost, 2025 (Figure S1, p. 6). Transcribed by the user from the executive summary. Utility-scale reference only. |
 | irena2025_battery_capex_usd_per_kwh | 140 | USD/kWh | IRENA2025 | 2026-07 | medium | verified | Four-hour utility-scale battery installed cost, 2025 (p. 3 and p. 8). Transcribed by the user from the executive summary. Utility-scale reference only. |
+| fuel_disruption_rate_base_per_yr | 0.85 | events/yr | NEWS_DISRUPTIONS | 2026-10 | low | computed | 4 weather-driven disruptions, Jan 2022 to Oct 2026: Sep 2022 (MB 3 Sep 2022), May-Jun 2023 Typhoon Betty (GMA 29 May 2023; Rappler), Aug 2023 southwest monsoon (Bombo Radyo 5 Aug 2023), Aug 2025 Itbayat food and fuel shortage (Manila Times 5 Aug 2025, [verify] not read). Rate as given by the user (4 / 4.8 y = 0.83). |
+| fuel_disruption_rate_high_per_yr | 1.05 | events/yr | NEWS_DISRUPTIONS | 2026-10 | low | computed | Base events plus the Apr 2026 national diesel shortage (GMA). Rate as given by the user (5 / 4.8 y = 1.03). |
+| fuel_disruption_rate_low_per_yr | 0.4 | events/yr | NEWS_DISRUPTIONS | 2026-10 | low | computed | All 7 documented disruptions since 2009, adding Sep 2009 (Philstar 15 Sep 2009, fuel ship in dry dock) and Jun-Oct 2011 (Philstar 12 Oct 2011, no funds for diesel). 7 / 17.8 y = 0.39. |
+| storm_rate_within_330km_per_yr | 4.15 | events/yr | IBTRACS | 2026-10 | medium | computed | Storm centres at least as close as Mawar 2023 (<= 330 km), typhoon_events.csv, 49 storms in 11.8 y. Upper bound only: most storms did not interrupt fuel supply. |
 | npc_offgrid_cost_vs_tariff_ratio | [3, 4] | generation cost / tariff | PHILSTAR2026 | 2026-05-29 | low | verified | Off-grid generation costs NPC 3 to 4 times the tariff it charges (news report). Context only. Provided by the user. |
 | npc_itbayat_planned_pv_kwp | 250 | kWp | MB2021 | 2021-05-01 | low | verified | NPC planned 250 kWp of PV for Itbayat (news report). Context only; not used in the model. |
 | ocon2019_battery_life_yr | 15 | years | OCON2019 | 2019 | medium | verified | Battery lifetime; the battery (energy and power parts) is replaced in year 15 at the same cost case. Provided by the user. |

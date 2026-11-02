@@ -290,36 +290,31 @@ def costs_table(year_summ, storms_t=None):
     return h, a
 
 
-EVENT_KM = 330.0          # an event: a storm centre at least as close as Mawar 2023 (328.5 km)
-
-
-def event_rate_per_yr():
-    """Storms per year whose closest approach is <= EVENT_KM (typhoon_events.csv, 2015 to the data end)."""
-    ev = pd.read_csv(P.paths.SITE_DIR / "typhoon_events.csv")
-    years = (P.DATA_END - pd.Timestamp("2015-01-01", tz="UTC")) / pd.Timedelta(days=365.25)
-    return float((ev["closest_km"] <= EVENT_KM).sum() / years), int((ev["closest_km"] <= EVENT_KM).sum()), years
+RATE_KEYS = {"low": "fuel_disruption_rate_low_per_yr", "base": "fuel_disruption_rate_base_per_yr",
+             "high": "fuel_disruption_rate_high_per_yr", "upper_bound": "storm_rate_within_330km_per_yr"}
 
 
 def aurora_resilience(storms_t):
     """AURORA's cost per critical outage hour avoided against B.
 
-    Per event: B minus C critical outage hours in each storm run (3, 7, 14-day tanker
-    delays, tank at 6,000 L). Expected hours per event: mean over the storms of the
-    delay-weighted sum (overdue_delay_weights 0.5/0.3/0.2). Expected hours per year:
-    that times the rate of storms within EVENT_KM. Every event is taken to meet the
-    stress case (low tank, delayed tanker), so the per-year figure is an upper bound on
-    hours avoided and the cost per hour a lower bound.
+    Per event (leading figure): B minus C critical outage hours in each storm run
+    (3, 7, 14-day tanker delays, tank at 6,000 L), and AURORA's annualised cost divided
+    by the event rate and by those hours. Expected hours per event: mean over the
+    storms of the delay-weighted sum (overdue_delay_weights 0.5/0.3/0.2).
+    Event rates: documented fuel disruptions (low 0.4, base 0.85, high 1.05 per year);
+    the IBTrACS rate of storms within 330 km (4.15 per year) is an upper bound only.
+    Each documented disruption is taken to look like the simulated stress case.
     Annualised controller cost = capex x CRF + annual cost (ASSUMPTIONs; low/base/high).
     """
     s = load_site()["values"]
     v = lambda k: s[k]["value"]  # noqa: E731
     k = crf(v("ocon2019_wacc"), int(v("ocon2019_project_life_yr")))
     w = dict(zip(P.DELAYS, v("overdue_delay_weights")))
-    lam, n_ev, yrs = event_rate_per_yr()
-    cases = {"low": (s["aurora_capex_php_assumed"]["range"][0], s["aurora_opex_php_per_yr_assumed"]["range"][0]),
+    rates = {c: v(key) for c, key in RATE_KEYS.items()}
+    costs = {"low": (s["aurora_capex_php_assumed"]["range"][0], s["aurora_opex_php_per_yr_assumed"]["range"][0]),
              "base": (v("aurora_capex_php_assumed"), v("aurora_opex_php_per_yr_assumed")),
              "high": (s["aurora_capex_php_assumed"]["range"][1], s["aurora_opex_php_per_yr_assumed"]["range"][1])}
-    ann = {c: cap * k + op for c, (cap, op) in cases.items()}
+    ann = {c: cap * k + op for c, (cap, op) in costs.items()}
     st = storms_t.pivot_table(index=["storm", "sizing", "delay_days"], columns="controller",
                               values="crit_outage_h").reset_index()
     st["avoided_h"] = st["B"] - st["C"]
@@ -327,17 +322,20 @@ def aurora_resilience(storms_t):
     for r in st.itertuples():
         row = dict(storm=r.storm, sizing=r.sizing, delay_days=r.delay_days, outage_h_B=r.B, outage_h_C=r.C,
                    avoided_h=r.avoided_h)
-        for c in cases:
-            row[f"cost_per_h_avoided_{c}_php"] = ann[c] / lam / r.avoided_h if r.avoided_h > 0 else np.nan
+        for rc in ("low", "base", "high"):
+            row[f"php_per_h_avoided_rate_{rc}"] = ann["base"] / rates[rc] / r.avoided_h if r.avoided_h > 0 else np.nan
         per_ev.append(row)
     for sz, g in st.groupby("sizing", sort=False):
         e_ev = g.groupby("storm").apply(lambda x: sum(w[d] * a for d, a in zip(x.delay_days, x.avoided_h))).mean()
-        row = dict(sizing=sz, events_per_yr=lam, events_counted=n_ev, years=round(yrs, 2),
-                   avoided_h_per_event=e_ev, avoided_h_per_yr=lam * e_ev)
-        for c in cases:
-            row[f"aurora_annualised_{c}_mphp"] = ann[c] / 1e6
-            row[f"cost_per_event_{c}_mphp"] = ann[c] / lam / 1e6
-            row[f"cost_per_h_avoided_{c}_php"] = ann[c] / (lam * e_ev) if e_ev > 0 else np.nan
+        row = dict(sizing=sz, avoided_h_per_event=e_ev)
+        for rc, lam in rates.items():
+            row[f"events_per_yr_{rc}"] = lam
+            row[f"avoided_h_per_yr_{rc}"] = lam * e_ev
+            row[f"cost_per_event_{rc}_mphp"] = ann["base"] / lam / 1e6
+            for cc in costs:
+                row[f"php_per_h_avoided_rate_{rc}_cost_{cc}"] = ann[cc] / (lam * e_ev) if e_ev > 0 else np.nan
+        for cc in costs:
+            row[f"aurora_annualised_{cc}_mphp"] = ann[cc] / 1e6
         summ.append(row)
     pe, sm = pd.DataFrame(per_ev), pd.DataFrame(summ)
     pe.to_csv(OUT / "aurora_cost_per_event.csv", index=False)
@@ -460,7 +458,7 @@ def write_all():
         parts += ["## Recommended size on all storms", md(rs)]
     h, a = costs_table(ys, t)
     parts += ["## Costs (PHP)", "### Hardware, A->B", md(h.round(2)), "### AURORA, B->C", md(a.round(2)),
-              "### AURORA cost per critical outage hour avoided, per storm run",
+              "### AURORA cost per critical outage hour avoided, per storm run (base controller cost)",
               md(pd.read_csv(OUT / "aurora_cost_per_event.csv").round(0)),
               "### Cross-check", md(cost_crosscheck())]
     tradeoff_figure()

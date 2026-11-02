@@ -161,6 +161,19 @@ values:
   irena2025_battery_capex_usd_per_kwh:
     {value: 140, unit: USD/kWh, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
      note: "Four-hour utility-scale battery installed cost, 2025 (p. 3 and p. 8). Transcribed by the user from the executive summary. Utility-scale reference only."}
+  # Documented weather- or supply-driven fuel disruptions to Batanes power (news, evidence of events).
+  fuel_disruption_rate_base_per_yr:
+    {value: 0.85, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "4 weather-driven disruptions, Jan 2022 to Oct 2026: Sep 2022 (MB 3 Sep 2022), May-Jun 2023 Typhoon Betty (GMA 29 May 2023; Rappler), Aug 2023 southwest monsoon (Bombo Radyo 5 Aug 2023), Aug 2025 Itbayat food and fuel shortage (Manila Times 5 Aug 2025, [verify] not read). Rate as given by the user (4 / 4.8 y = 0.83)."}
+  fuel_disruption_rate_high_per_yr:
+    {value: 1.05, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "Base events plus the Apr 2026 national diesel shortage (GMA). Rate as given by the user (5 / 4.8 y = 1.03)."}
+  fuel_disruption_rate_low_per_yr:
+    {value: 0.4, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "All 7 documented disruptions since 2009, adding Sep 2009 (Philstar 15 Sep 2009, fuel ship in dry dock) and Jun-Oct 2011 (Philstar 12 Oct 2011, no funds for diesel). 7 / 17.8 y = 0.39."}
+  storm_rate_within_330km_per_yr:
+    {value: 4.15, unit: events/yr, source: IBTRACS, date: 2026-10, confidence: medium, status: computed,
+     note: "Storm centres at least as close as Mawar 2023 (<= 330 km), typhoon_events.csv, 49 storms in 11.8 y. Upper bound only: most storms did not interrupt fuel supply."}
   npc_offgrid_cost_vs_tariff_ratio:
     {value: [3, 4], unit: generation cost / tariff, source: PHILSTAR2026, date: 2026-05-29, confidence: low, status: verified,
      note: "Off-grid generation costs NPC 3 to 4 times the tariff it charges (news report). Context only. Provided by the user."}
