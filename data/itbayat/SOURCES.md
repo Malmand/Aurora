@@ -107,6 +107,11 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | overdue_delay_weights | [0.5, 0.3, 0.2] | probability | ASSUMPTION |  | low | ASSUMPTION | Prior weights of the delay scenarios. With the 500 vs 150 PHP/kWh penalties, flexible load is shed only when P(fuel shortfall) > 0.3. Sensitivity range [[0.7, 0.2, 0.1], [0.2, 0.3, 0.5]]. |
 | overdue_resupply_days_assumed | 7 | days | ASSUMPTION |  | low | ASSUMPTION | Fallback once all delay scenarios have passed: the MPC plans as if the tanker arrives this many days from now (rolling). Sensitivity range [3, 14]. |
 | php_per_usd | 56 | PHP/USD | TEAM_CASE |  | low | ASSUMPTION | Exchange rate used by the team case study. Sensitivity range [50, 60]. |
+| pv_capex_usd_per_kwp_assumed | 1500 | USD/kWp | ASSUMPTION |  | low | ASSUMPTION | Installed PV on a remote island including shipping and balance of system. Replace with an INL, NPC-SPUG or vendor quote. Sensitivity range [1000, 2500]. |
+| battery_capex_usd_per_kwh_assumed | 450 | USD/kWh | TEAM_CASE |  | low | ASSUMPTION | Battery energy cost; same 450 USD/kWh as the team case value behind battery_degradation_php_per_kwh. Sensitivity range [300, 700]. |
+| battery_pcs_capex_usd_per_kw_assumed | 150 | USD/kW | ASSUMPTION |  | low | ASSUMPTION | Battery inverter (power conversion system). Sensitivity range [100, 300]. |
+| om_frac_of_capex_per_year_assumed | 0.02 | fraction of capex per year | ASSUMPTION |  | low | ASSUMPTION | PV and battery O&M, used for the net payback. Sensitivity range [0.01, 0.03]. |
+| sweep_battery_c_rate_cap_kw_assumed | 375 | kW | ASSUMPTION |  | low | ASSUMPTION | Sizing sweep battery power = min(kWh x 1 per h, 375 kW). Reproduces both INL (300 kW / 300 kWh) and case (375 kW / 1,500 kWh). Sensitivity range [250, 500]. |
 | co2_shadow_price_php_per_t | 2800 | PHP/t CO2 | ASSUMPTION |  | low | ASSUMPTION | Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight. Sensitivity range [0, 5600]. |
 | distribution_voltage_kv | 0.48 | kV | INL2025 | 2025-01-30 | medium | verified | Primary distribution 480 V; secondary 240 V via step-down transformers. |
 | pv_kwp_inl | 300 | kWp | INL2025 | 2025-01-30 | medium | verified |  |

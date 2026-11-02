@@ -125,6 +125,24 @@ values:
   php_per_usd:
     {value: 56, unit: PHP/USD, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
      range: [50, 60], note: "Exchange rate used by the team case study."}
+  # ---------------- capital costs (Phase 4) ----------------
+  # No sourced installed-cost figure for Itbayat or Batanes is in the repo. All four
+  # values are ASSUMPTIONs; Phase 4 reports payback at the low and high ends.
+  pv_capex_usd_per_kwp_assumed:
+    {value: 1500, unit: USD/kWp, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [1000, 2500], note: "Installed PV on a remote island including shipping and balance of system. Replace with an INL, NPC-SPUG or vendor quote."}
+  battery_capex_usd_per_kwh_assumed:
+    {value: 450, unit: USD/kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [300, 700], note: "Battery energy cost; same 450 USD/kWh as the team case value behind battery_degradation_php_per_kwh."}
+  battery_pcs_capex_usd_per_kw_assumed:
+    {value: 150, unit: USD/kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [100, 300], note: "Battery inverter (power conversion system)."}
+  om_frac_of_capex_per_year_assumed:
+    {value: 0.02, unit: fraction of capex per year, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.01, 0.03], note: "PV and battery O&M, used for the net payback."}
+  sweep_battery_c_rate_cap_kw_assumed:
+    {value: 375, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [250, 500], note: "Sizing sweep battery power = min(kWh x 1 per h, 375 kW). Reproduces both INL (300 kW / 300 kWh) and case (375 kW / 1,500 kWh)."}
   co2_shadow_price_php_per_t:
     {value: 2800, unit: PHP/t CO2, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [0, 5600], note: "Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight."}
