@@ -1,0 +1,13 @@
+storm,forecast,crit_outage_h,flex_shed_kwh,diesel_l,sum_of_cest_medians_h
+mawar2023,perfect,0,13971.6,34877.0,232.6
+mawar2023,phase2 (AURORA),5,13852.4,34949.0,231.1
+mawar2023,raw NWP mean,2,15615.4,35544.0,230.0
+mawar2023,smart persistence,5,15234.6,35832.0,230.4
+ragasa2025,perfect,0,15340.800000000001,34559.0,230.8
+ragasa2025,phase2 (AURORA),5,16077.8,34787.0,229.8
+ragasa2025,raw NWP mean,6,15869.999999999998,34921.0,230.1
+ragasa2025,smart persistence,10,20449.0,35296.0,229.9
+mekkhala2026,perfect,0,25001.600000000002,37233.0,233.5
+mekkhala2026,phase2 (AURORA),8,25385.2,37165.0,197.3
+mekkhala2026,raw NWP mean,8,25877.2,37768.0,232.8
+mekkhala2026,smart persistence,5,25473.7,37336.0,232.4

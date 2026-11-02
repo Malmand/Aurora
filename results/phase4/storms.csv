@@ -1,0 +1,55 @@
+storm,regime,sizing,delay_days,controller,crit_outage_h,crit_unserved_kwh,flex_shed_kwh,diesel_l,fuel_cost_mphp,cest_median_h,cest_min_h,tank_min_l
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,3,A,0,0.0,0.0,7039.0,0.795,0.0,0.0,1972.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,3,B,0,0.0,0.0,4895.0,0.553,0.0,0.0,3114.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,3,C,0,0.0,0.0,4666.0,0.527,5.1,0.0,3219.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,7,A,49,2419.0,4984.4,8975.0,1.014,0.0,0.0,0.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,7,B,0,0.0,0.0,7387.0,0.835,0.0,0.0,437.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,7,C,0,0.0,1594.3,6531.0,0.738,5.3,0.0,1164.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,14,A,217,10763.0,21861.3,8948.0,1.011,0.0,0.0,0.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,14,B,89,3103.9,10488.5,8446.0,0.954,0.0,0.0,0.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",inl,14,C,5,107.5,12258.1,8381.0,0.947,4.7,0.0,13.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,3,A,0,0.0,0.0,7039.0,0.795,0.0,0.0,1972.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,3,B,0,0.0,0.0,3164.0,0.358,0.0,0.0,4086.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,3,C,0,0.0,0.0,3191.0,0.361,72.0,0.0,4089.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,7,A,49,2419.0,4984.4,8975.0,1.014,0.0,0.0,0.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,7,B,0,0.0,0.0,4588.0,0.518,0.0,0.0,2425.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,7,C,0,0.0,0.0,4462.0,0.504,72.0,0.0,2492.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,14,A,217,10763.0,21861.3,8948.0,1.011,0.0,0.0,0.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,14,B,2,70.0,355.5,8088.0,0.914,0.0,0.0,0.0
+mawar2023,"backup (reduced Phase 2 model, no NWP GHI)",case,14,C,0,0.0,0.0,7718.0,0.872,72.0,0.0,143.0
+ragasa2025,full Phase 2 model,inl,3,A,0,0.0,0.0,6915.0,0.781,0.0,0.0,2060.0
+ragasa2025,full Phase 2 model,inl,3,B,0,0.0,0.0,5043.0,0.57,0.0,0.0,3127.0
+ragasa2025,full Phase 2 model,inl,3,C,0,0.0,4.8,4789.0,0.541,4.6,0.0,3245.0
+ragasa2025,full Phase 2 model,inl,7,A,46,2314.0,4599.7,8948.0,1.011,0.0,0.0,18.0
+ragasa2025,full Phase 2 model,inl,7,B,0,0.0,0.0,7535.0,0.851,0.0,0.0,262.0
+ragasa2025,full Phase 2 model,inl,7,C,0,0.0,2575.5,6381.0,0.721,4.7,0.0,1312.0
+ragasa2025,full Phase 2 model,inl,14,A,214,10658.0,21209.7,8957.0,1.012,0.0,0.0,18.0
+ragasa2025,full Phase 2 model,inl,14,B,92,3244.2,10975.2,7912.0,0.894,0.0,0.0,3.0
+ragasa2025,full Phase 2 model,inl,14,C,5,153.0,12796.6,7838.0,0.886,4.5,0.0,0.0
+ragasa2025,full Phase 2 model,case,3,A,0,0.0,0.0,6915.0,0.781,0.0,0.0,2060.0
+ragasa2025,full Phase 2 model,case,3,B,0,0.0,0.0,3531.0,0.399,0.0,0.0,4013.0
+ragasa2025,full Phase 2 model,case,3,C,0,0.0,0.0,3589.0,0.406,72.0,0.0,3864.0
+ragasa2025,full Phase 2 model,case,7,A,46,2314.0,4599.7,8948.0,1.011,0.0,0.0,18.0
+ragasa2025,full Phase 2 model,case,7,B,0,0.0,0.0,4967.0,0.561,0.0,0.0,1988.0
+ragasa2025,full Phase 2 model,case,7,C,0,0.0,0.0,4901.0,0.554,72.0,0.0,2060.0
+ragasa2025,full Phase 2 model,case,14,A,214,10658.0,21209.7,8957.0,1.012,0.0,0.0,18.0
+ragasa2025,full Phase 2 model,case,14,B,13,491.0,1623.4,7136.0,0.806,0.0,0.0,0.0
+ragasa2025,full Phase 2 model,case,14,C,0,0.0,700.9,7289.0,0.824,72.0,0.0,0.0
+mekkhala2026,full Phase 2 model,inl,3,A,0,0.0,0.0,7557.0,0.854,0.0,0.0,1632.0
+mekkhala2026,full Phase 2 model,inl,3,B,0,0.0,0.0,5667.0,0.64,0.0,0.0,2805.0
+mekkhala2026,full Phase 2 model,inl,3,C,0,0.0,43.8,5385.0,0.609,4.7,0.0,2983.0
+mekkhala2026,full Phase 2 model,inl,7,A,57,2796.0,6570.9,9255.0,1.046,0.0,0.0,0.0
+mekkhala2026,full Phase 2 model,inl,7,B,6,222.0,976.5,8153.0,0.921,0.0,0.0,0.0
+mekkhala2026,full Phase 2 model,inl,7,C,0,0.0,4866.3,6744.0,0.762,5.3,0.0,1277.0
+mekkhala2026,full Phase 2 model,inl,14,A,225,11140.0,25461.0,9249.0,1.045,0.0,0.0,0.0
+mekkhala2026,full Phase 2 model,inl,14,B,105,3734.0,14314.5,8091.0,0.914,0.0,0.0,0.0
+mekkhala2026,full Phase 2 model,inl,14,C,6,165.1,16811.2,8006.0,0.905,5.1,0.0,2.0
+mekkhala2026,full Phase 2 model,case,3,A,0,0.0,0.0,7557.0,0.854,0.0,0.0,1632.0
+mekkhala2026,full Phase 2 model,case,3,B,0,0.0,0.0,4079.0,0.461,0.0,0.0,3822.0
+mekkhala2026,full Phase 2 model,case,3,C,0,0.0,0.0,4029.0,0.455,38.2,0.0,3837.0
+mekkhala2026,full Phase 2 model,case,7,A,57,2796.0,6570.9,9255.0,1.046,0.0,0.0,0.0
+mekkhala2026,full Phase 2 model,case,7,B,0,0.0,0.0,5855.0,0.662,0.0,0.0,1512.0
+mekkhala2026,full Phase 2 model,case,7,C,0,0.0,0.0,5646.0,0.638,72.0,0.0,1591.0
+mekkhala2026,full Phase 2 model,case,14,A,225,11140.0,25461.0,9249.0,1.045,0.0,0.0,0.0
+mekkhala2026,full Phase 2 model,case,14,B,37,1176.2,4010.1,7271.0,0.822,0.0,0.0,14.0
+mekkhala2026,full Phase 2 model,case,14,C,2,45.8,3663.9,7355.0,0.831,72.0,0.0,14.0

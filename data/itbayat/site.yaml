@@ -124,7 +124,77 @@ values:
      range: [3, 14], note: "Fallback once all delay scenarios have passed: the MPC plans as if the tanker arrives this many days from now (rolling)."}
   php_per_usd:
     {value: 56, unit: PHP/USD, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
-     range: [50, 60], note: "Exchange rate used by the team case study."}
+     range: [50, 60], note: "Exchange rate used by the team case study. Used for the low cost case (Ocon and Bertheau 2019 in USD) and the ESMAP cross-check; base and high costs are in PHP."}
+  # ---------------- capital costs (Phase 4), in PHP ----------------
+  # Base: the NPC Sabtang bid ceiling, split into PV and battery with the Ocon and
+  # Bertheau (2019) Table 1 cost structure, scaled linearly to each size.
+  # Low: Ocon and Bertheau (2019) Table 1 as published, at php_per_usd (ASSUMPTION).
+  # High: base x cost_high_factor_assumed.
+  npc_sabtang_abc_php:
+    {value: 57697900, unit: PHP, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified,
+     note: "Approved budget for the contract (ceiling, not an award price) for >=180 kWp PV and >=120 kW / 120 kWh battery with transformers and civil works, Sabtang (Savidug) Island, Batanes. Provided by the user."}
+  npc_sabtang_pv_kwp:
+    {value: 180, unit: kWp, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified, note: "Minimum PV size in the bid."}
+  npc_sabtang_battery_kw:
+    {value: 120, unit: kW, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified, note: "Minimum battery power in the bid."}
+  npc_sabtang_battery_kwh:
+    {value: 120, unit: kWh, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified, note: "Minimum battery energy in the bid."}
+  ocon2019_pv_capex_usd_per_kw:
+    {value: 1200, unit: USD/kW, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Table 1, PV capex. Transcribed by the user."}
+  ocon2019_battery_capex_usd_per_kwh:
+    {value: 260, unit: USD/kWh, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Table 1, battery energy capex. Transcribed by the user."}
+  ocon2019_battery_capex_usd_per_kw:
+    {value: 540, unit: USD/kW, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Table 1, battery power (converter) capex. Transcribed by the user."}
+  ocon2019_wacc:
+    {value: 0.0994, unit: fraction per year, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "WACC for discounted payback and LCOE. Provided by the user."}
+  ocon2019_project_life_yr:
+    {value: 20, unit: years, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Project life for discounted payback and LCOE. Provided by the user."}
+  cost_high_factor_assumed:
+    {value: 1.25, unit: multiplier on the base cost, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [1.1, 1.5], note: "High cost case: Itbayat is more remote than Sabtang, and the ABC is a 2023 ceiling."}
+  esmap2019_minigrid_capex_median_usd_per_kw:
+    {value: 3900, unit: USD/kW, source: ESMAP2019, date: 2019, confidence: low, status: verified,
+     note: "Mini-grid capex median, about 3,900 USD/kW; range 1,420 to 22,689 USD/kW. Cross-check only. Provided by the user."}
+  irena2025_pv_capex_usd_per_kw:
+    {value: 667, unit: USD/kW, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
+     note: "Utility-scale PV, global weighted-average total installed cost, 2025 (Figure S1, p. 6). Transcribed by the user from the executive summary. Utility-scale reference only."}
+  irena2025_battery_capex_usd_per_kwh:
+    {value: 140, unit: USD/kWh, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
+     note: "Four-hour utility-scale battery installed cost, 2025 (p. 3 and p. 8). Transcribed by the user from the executive summary. Utility-scale reference only."}
+  # Documented weather- or supply-driven fuel disruptions to Batanes power (news, evidence of events).
+  fuel_disruption_rate_base_per_yr:
+    {value: 0.85, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "4 weather-driven disruptions, Jan 2022 to Oct 2026: Sep 2022 (MB 3 Sep 2022), May-Jun 2023 Typhoon Betty (GMA 29 May 2023; Rappler), Aug 2023 southwest monsoon (Bombo Radyo 5 Aug 2023), Aug 2025 Itbayat food and fuel shortage (Manila Times 5 Aug 2025, [verify] not read). Rate as given by the user (4 / 4.8 y = 0.83)."}
+  fuel_disruption_rate_high_per_yr:
+    {value: 1.05, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "Base events plus the Apr 2026 national diesel shortage (GMA). Rate as given by the user (5 / 4.8 y = 1.03)."}
+  fuel_disruption_rate_low_per_yr:
+    {value: 0.4, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "All 7 documented disruptions since 2009, adding Sep 2009 (Philstar 15 Sep 2009, fuel ship in dry dock) and Jun-Oct 2011 (Philstar 12 Oct 2011, no funds for diesel). 7 / 17.8 y = 0.39."}
+  storm_rate_within_330km_per_yr:
+    {value: 4.15, unit: events/yr, source: IBTRACS, date: 2026-10, confidence: medium, status: computed,
+     note: "Storm centres at least as close as Mawar 2023 (<= 330 km), typhoon_events.csv, 49 storms in 11.8 y. Upper bound only: most storms did not interrupt fuel supply."}
+  npc_offgrid_cost_vs_tariff_ratio:
+    {value: [3, 4], unit: generation cost / tariff, source: PHILSTAR2026, date: 2026-05-29, confidence: low, status: verified,
+     note: "Off-grid generation costs NPC 3 to 4 times the tariff it charges (news report). Context only. Provided by the user."}
+  npc_itbayat_planned_pv_kwp:
+    {value: 250, unit: kWp, source: MB2021, date: 2021-05-01, confidence: low, status: verified,
+     note: "NPC planned 250 kWp of PV for Itbayat (news report). Context only; not used in the model."}
+  ocon2019_battery_life_yr:
+    {value: 15, unit: years, source: OCON2019, date: 2019, confidence: medium, status: verified,
+     note: "Battery lifetime; the battery (energy and power parts) is replaced in year 15 at the same cost case. Provided by the user."}
+  aurora_capex_php_assumed:
+    {value: 2500000, unit: PHP, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [1000000, 5000000], note: "One-off AURORA controller cost: EMS computer, metering and comms links, integration and commissioning on top of the PV and battery controls that B already needs."}
+  aurora_opex_php_per_yr_assumed:
+    {value: 500000, unit: PHP/yr, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [200000, 1000000], note: "Annual AURORA software cost: NWP data, forecast retraining, maintenance and remote support."}
+  om_frac_of_capex_per_year_assumed:
+    {value: 0.02, unit: fraction of capex per year, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.01, 0.03], note: "PV and battery O&M, used for the net payback."}
+  sweep_battery_c_rate_cap_kw_assumed:
+    {value: 375, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [250, 500], note: "Sizing sweep battery power = min(kWh x 1 per h, 375 kW). Reproduces both INL (300 kW / 300 kWh) and case (375 kW / 1,500 kWh)."}
   co2_shadow_price_php_per_t:
     {value: 2800, unit: PHP/t CO2, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [0, 5600], note: "Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight."}

@@ -1,0 +1,3 @@
+forecast,solar_p50_bias_kwh_per_day,solar_p10_bias_kwh_per_day,crit_p50_bias_kwh_per_day,crit_p90_bias_kwh_per_day,flex_p50_bias_kwh_per_day,solar_actual_kwh_per_day,solar_p50_mae_kwh_per_day,fallback_h
+persistence,10.0,-266.0,0.0,24.0,9.0,1310.0,255.0,0
+phase2,16.0,-318.0,-15.0,-2.0,-28.0,1310.0,176.0,176
