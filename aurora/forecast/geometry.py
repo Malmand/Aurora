@@ -55,3 +55,30 @@ def season(index: pd.DatetimeIndex) -> np.ndarray:
     m = pd.DatetimeIndex(index).tz_convert(paths.LOCAL_TZ).month
     return np.array(["DJF", "DJF", "MAM", "MAM", "MAM", "JJA", "JJA", "JJA",
                      "SON", "SON", "SON", "DJF"])[m - 1]
+
+
+def ghi_to_pv_per_kwp(ghi: pd.Series, temp_c: pd.Series, wind_ms: pd.Series | None) -> pd.Series:
+    """Hour-mean GHI -> AC kW per kWp with the shared array model (aurora/data/pvmodel.py).
+
+    Forecasts give GHI only, so it is split into DNI and DHI with the Erbs model
+    (pvlib) at mid-hour sun position before calling pvmodel. The same split is
+    applied to forecast quantiles and to the reference series. PV rises
+    monotonically with GHI for fixed weather, so converted quantiles remain
+    quantiles of PV power to a good approximation.
+    """
+    import pvlib
+
+    from aurora.data import pvmodel
+
+    idx = ghi.index
+    g = ghi.clip(lower=0).fillna(0.0)
+    mid = idx - pd.Timedelta(minutes=30)
+    zen = pvlib.solarposition.get_solarposition(mid, paths.LAT, paths.LON)["apparent_zenith"].to_numpy()
+    dec = pvlib.irradiance.erbs(g.to_numpy(), zen, mid.dayofyear.to_numpy())
+    w = pd.DataFrame({"ghi_wm2": g.to_numpy(), "dni_wm2": np.nan_to_num(dec["dni"]),
+                      "dhi_wm2": np.nan_to_num(dec["dhi"])}, index=idx)
+    t = temp_c.reindex(idx)
+    if t.isna().all():
+        t = pd.Series(27.0, index=idx)      # only if no temperature at all; cell temperature effect is small
+    pv = pvmodel.pv_ac_per_kwp(w, t, wind_ms.reindex(idx) if wind_ms is not None else None)
+    return pv.where(g > 0, 0.0)

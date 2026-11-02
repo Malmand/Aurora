@@ -385,7 +385,8 @@ def build(bt: pd.DataFrame, dm: pd.DataFrame, pv: dict | None = None, out_md=OUT
     if pv:
         w("## PV power (300 kWp INL array, kW, daylight hours)")
         w("")
-        w("GHI quantiles converted with pvlib (Erbs split, Hay-Davies, SAPM cell temperature with forecast air "
+        w("GHI quantiles split into DNI/DHI with Erbs, then converted with the shared array model "
+          "`aurora/data/pvmodel.py` (the one the twin uses: Hay-Davies, SAPM cell temperature with forecast air "
           "temperature and wind, PVWatts). Reference: the same chain applied to satellite GHI with ERA5 "
           "temperature and wind.")
         w("")

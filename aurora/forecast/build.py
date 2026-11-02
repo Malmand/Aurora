@@ -23,8 +23,7 @@ from aurora.data import paths
 
 from . import backtest as B, demand as D, operational as O, report
 from .features import load_nwp, load_truth
-from .geometry import hourly_clearsky
-from .pv import pv_ac_per_kwp
+from .geometry import ghi_to_pv_per_kwp
 
 CACHE = O.FC_DIR / "cache"
 LEAN_SOLAR = O.FC_DIR / "backtest_solar.parquet"
@@ -36,7 +35,6 @@ def lean_solar(bt: pd.DataFrame) -> pd.DataFrame:
     out = []
     for ld, g in bt.groupby("lead_day"):
         g = g.sort_index()
-        geom = hourly_clearsky(g.index)
         gc = g["ghi_clear"]
         o = g[["issue_time", "lead_h", "lead_day", "regime", "calibrated", "ghi_clear", "ghi_true"]].copy()
         o = o.rename(columns={"ghi_true": "ghi_ref"})
@@ -48,7 +46,7 @@ def lean_solar(bt: pd.DataFrame) -> pd.DataFrame:
             if k != "ref":
                 o[f"ghi_{k}"] = s
             temp, wind = (g["temp_era5"], g["wind_era5"]) if k == "ref" else (g["temp_fc"], g["wind_fc"])
-            pv = pv_ac_per_kwp(s.fillna(0.0) if k != "ref" else s, temp, wind, geom)
+            pv = ghi_to_pv_per_kwp(s, temp, wind)
             o[f"pv_kw_per_kwp_{k}"] = pv.where(s.notna())
         out.append(o)
     o = pd.concat(out).sort_values(["issue_time", "lead_h"])

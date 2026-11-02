@@ -122,7 +122,7 @@ Before Feb 2024 the archive has no NWP GHI at lead days 1-2, only JMA cloud, hum
 
 ## PV power (300 kWp INL array, kW, daylight hours)
 
-GHI quantiles converted with pvlib (Erbs split, Hay-Davies, SAPM cell temperature with forecast air temperature and wind, PVWatts). Reference: the same chain applied to satellite GHI with ERA5 temperature and wind.
+GHI quantiles split into DNI/DHI with Erbs, then converted with the shared array model `aurora/data/pvmodel.py` (the one the twin uses: Hay-Davies, SAPM cell temperature with forecast air temperature and wind, PVWatts). Reference: the same chain applied to satellite GHI with ERA5 temperature and wind.
 
 | Lead day | MAE AURORA P50 | RMSE AURORA P50 | RMSE raw NWP mean | RMSE persistence | PICP80 |
 |---|---|---|---|---|---|

@@ -7,6 +7,8 @@ Output schema (one CSV per issue time, 48 hourly rows, digital-twin schema plus 
     demand_flex_kW_p10, demand_flex_kW_p50, demand_flex_kW_p90, fallback
 
 Times are UTC ISO 8601; ``timestamp`` is the end of the hour (hour-mean power).
+Each file also carries ``time_label = end`` so the twin's CSV reader
+(aurora/twin/forecasts.read_forecast_csv) shifts it to the step start.
 
 Live mode (``python -m aurora.forecast.issue --live``) requests the latest run
 of each NWP model from the Open-Meteo forecast API. If every request fails
@@ -24,14 +26,15 @@ import numpy as np
 import pandas as pd
 
 from aurora.data import paths, rawio
+from aurora.data.site import load_site, value
 
 from . import baselines, demand as D, quantile as Qm
 from .backtest import POOL_DAYS, full_feature_cols, reduced_feature_cols
 from .features import (ISSUE_HOUR_UTC, LEAD_DAYS, QUANTILES, lead_features, mslp_climatology,
                        target_frame)
-from .geometry import K_MAX, clearsky_index, hourly_clearsky, season
-from .pv import PV_KWP_INL, pv_ac_per_kwp
+from .geometry import K_MAX, clearsky_index, ghi_to_pv_per_kwp, hourly_clearsky, season
 
+PV_KWP_INL = float(value(load_site(), "pv_kwp_inl"))   # default array for the CSV files
 FC_DIR = paths.SITE_DIR / "forecast"
 MODEL_DIR = FC_DIR / "models"
 ISSUE_DIR = FC_DIR / "issues"
@@ -78,6 +81,7 @@ def write_csv(df: pd.DataFrame, out_dir=ISSUE_DIR, tag="") -> str:
     d = df.copy()
     for c in ("issue_time", "timestamp"):
         d[c] = pd.to_datetime(d[c]).dt.strftime("%Y-%m-%dT%H:%MZ")
+    d["time_label"] = "end"
     d.round(3).to_csv(path, index=False)
     return str(path)
 
@@ -247,8 +251,8 @@ def forecast_issue(issue_time, bundle: dict | None = None, nwp: dict | None = No
                 [rows.month, rows.hour])).to_numpy(), index=rows)
         wind = T["wind_fc"].fillna(3.0)
         for jj, t in enumerate((0.1, 0.5, 0.9)):
-            solar[np.isin(w, rows), jj] = pv_ac_per_kwp(pd.Series(ghiq[:, J[t]], index=rows), temp, wind,
-                                                        base.loc[rows]).to_numpy() * pv_kwp
+            solar[np.isin(w, rows), jj] = ghi_to_pv_per_kwp(pd.Series(ghiq[:, J[t]], index=rows), temp,
+                                                            wind).to_numpy() * pv_kwp
         # demand
         lh = load_hist if load_hist is not None else D.load_series()[0]
         lh = lh[lh.index <= it]
