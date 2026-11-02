@@ -1,0 +1,4 @@
+controller,sizing,forecast,hours,diesel_l,fuel_cost_mphp,co2_t,diesel_kwh,renewable_share_pct,curtail_kwh,flex_shed_kwh,crit_unserved_kwh,crit_outage_h,battery_throughput_kwh,battery_cycles,diesel_starts,cest_median_h,cest_min_h,cest_ge12_pct,cest_ge24_pct,risk_mean,tank_min_l,relaxed_steps,fallback_steps,max_balance_resid_kw,wall_s,deliveries
+A,case,persistence,432,8948.0,1.011,24.0,32254.0,0.0,0.0,21861.3,10763.0,217,0.0,0.0,11,0.0,0.0,0.0,0.0,1.0,0.0,0,0,0.0,1.7,"[('2023-06-10 16:00:00+00:00', '2023-05-27 16:00:00+00:00', 60000)]"
+B,case,persistence,432,8088.0,0.914,21.7,27903.0,56.7,0.0,355.5,70.0,2,12078.0,8.1,28,0.0,0.0,26.6,25.5,0.574,0.0,0,0,2.842170943040401e-14,2.4,"[('2023-06-10 16:00:00+00:00', '2023-05-27 16:00:00+00:00', 60000)]"
+C,case,persistence,432,8063.0,0.911,21.6,30402.0,53.1,1002.0,0.0,0.0,0,13115.0,8.7,22,72.0,0.0,84.3,79.9,0.074,16.0,0,0,2.842170943040401e-14,163.3,"[('2023-06-10 16:00:00+00:00', '2023-05-27 16:00:00+00:00', 59984)]"

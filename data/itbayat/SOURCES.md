@@ -34,6 +34,8 @@ Site documents:
 - **OCON2019** Ocon, J. D., Bertheau, P. (2019). Energy transition from diesel-based to solar photovoltaics-battery-diesel hybrid system-based island grids in the Philippines: techno-economic potential and policy implication on missionary electrification. *J. Sustain. Dev. Energy Water Environ. Syst.* 7(1), 139-154. doi:[10.13044/j.sdewes.d6.0230](https://doi.org/10.13044/j.sdewes.d6.0230).
 - **CASTRO2022** Castro, M. T., Pascasio, J. D. A., Delina, L. L., Balite, P. H. M., Ocon, J. D. (2022). Techno-economic and financial analyses of hybrid renewable energy system microgrids in 634 Philippine off-grid islands: policy implications on public subsidies and private investments. *Energy* 257, 124599. doi:[10.1016/j.energy.2022.124599](https://doi.org/10.1016/j.energy.2022.124599). The brief lists three authors; Crossref lists five. Dataset: doi:[10.17632/cg5z25rj8y.1](https://doi.org/10.17632/cg5z25rj8y.1) (CC BY 4.0, Mendeley Data; not yet opened). Transcribe the Itbayat row into `reference/castro2022_itbayat.csv`.
 
+- **IPCC2006** IPCC (2006). *2006 IPCC Guidelines for National Greenhouse Gas Inventories*, Vol. 2 Energy, Ch. 1 (Table 1.2, net calorific values) and Ch. 2 (Table 2.2, default CO2 emission factors). IGES, Japan. https://www.ipcc-nggip.iges.or.jp/public/2006gl/vol2.html
+
 Project documents:
 
 - **BRIEF** `docs/CLOUD_BRIEF.md` in this repo (project brief; collects the figures from the team update).
@@ -81,6 +83,13 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | diesel_available_kw | 560 | kW | INL2025 | 2025-01-30 | medium | computed | 660 - 100 kW. |
 | diesel_unit_ratings_kw | **missing** | kW | INL2025 |  | low | missing | Not stated in the INL report (only the 660 kW total and one broken 100 kW unit). Ask NPC-SPUG / BATANELCO. |
 | diesel_min_loading_frac | 0.3 | fraction of unit rating | ASSUMPTION |  | low | ASSUMPTION | Typical genset minimum loading; replace with INL or NPC-SPUG figure. Sensitivity range [0.25, 0.4]. |
+| diesel_units_available | 3 | units | INL2025 | 2025-01-30 | medium | computed | 4 units minus the one out of service. |
+| diesel_unit_kw_assumed | 186.7 | kW | ASSUMPTION |  | low | ASSUMPTION | Unit ratings are missing. Twin splits the 560 kW available equally over the 3 working units. Sensitivity range [140, 260]. |
+| diesel_fuel_noload_l_per_h_per_kw | 0.04 | L/h per kW of committed rating | ASSUMPTION |  | low | ASSUMPTION | Linear fuel curve F = a * P_rated * on + b * P. With b = 0.22 this gives 0.277 L/kWh at 70 % loading, the team case value. Sensitivity range [0.02, 0.08]. |
+| diesel_fuel_slope_l_per_kwh | 0.22 | L/kWh | ASSUMPTION |  | low | ASSUMPTION | Incremental fuel use of the linear fuel curve. Sensitivity range [0.2, 0.25]. |
+| diesel_sfc_team_l_per_kwh | 0.277 | L/kWh | TEAM_CASE |  | low | ASSUMPTION | Team case flat fuel rate, labelled there as an NPC-SPUG rate without a document. Used only to size the assumed fuel tank. Sensitivity range [0.25, 0.33]. |
+| diesel_start_cost_php | 300 | PHP per start | ASSUMPTION |  | low | ASSUMPTION | Wear cost per unit start in the MPC objective; stops unit cycling. Sensitivity range [0, 1000]. |
+| co2_kg_per_l | 2.68 | kg CO2/L | IPCC2006 | 2006 | high | computed | 74,100 kg CO2/TJ x 43.0 TJ/Gg (IPCC 2006 defaults for gas/diesel oil) x 0.84 kg/L density (ASSUMPTION). Check table pages. [verify] |
 | peak_demand_kw | 250 | kW | INL2025 | 2025-01-30 | medium | verified | INL says 'about 250 kW'; the reference year is not stated (report dated Jan 2025). |
 | peak_season | May-July | months | INL2025 | 2025-01-30 | medium | verified |  |
 | peak_growth_since_2021 | 0.12 | fraction | INL2025 | 2025-01-30 | medium | verified | +12 % peak since 2021. |
@@ -92,13 +101,30 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | fuel_supply_months_with_inl_system | 3 | months | INL2025 | 2025-01-30 | medium | verified |  |
 | fuel_storage_l | **missing** | L | INL2025 |  | low | missing | Not in the INL report. Ask NPC-SPUG. Needed for the Phase 3 fuel state; until then derive from 'about 2 months of supply' as an ASSUMPTION. |
 | resupply_interval_days | **missing** | days | INL2025 |  | low | missing | Not in the INL report. |
+| fuel_storage_l_assumed | 60000 | L | ASSUMPTION |  | low | ASSUMPTION | Stands in for the missing fuel_storage_l. 2 months (INL) x 991 L/day, the diesel-only use of the 2024 synthetic load (1,306 MWh/yr x 0.277 L/kWh / 365). Sensitivity range [30000, 90000]. |
+| resupply_interval_days_assumed | 30 | days | ASSUMPTION |  | low | ASSUMPTION | Stands in for the missing resupply_interval_days. Each delivery tops the tank up to capacity. Sensitivity range [14, 60]. |
+| overdue_delay_scenarios_days | [3, 7, 14] | days after the planned delivery | ASSUMPTION |  | low | ASSUMPTION | Possible total delays of an overdue tanker. Scenarios already passed are dropped and the weights renormalised. Sensitivity range [[2, 5, 10], [5, 10, 21]]. |
+| overdue_delay_weights | [0.5, 0.3, 0.2] | probability | ASSUMPTION |  | low | ASSUMPTION | Prior weights of the delay scenarios. With the 500 vs 150 PHP/kWh penalties, flexible load is shed only when P(fuel shortfall) > 0.3. Sensitivity range [[0.7, 0.2, 0.1], [0.2, 0.3, 0.5]]. |
+| overdue_resupply_days_assumed | 7 | days | ASSUMPTION |  | low | ASSUMPTION | Fallback once all delay scenarios have passed: the MPC plans as if the tanker arrives this many days from now (rolling). Sensitivity range [3, 14]. |
+| php_per_usd | 56 | PHP/USD | TEAM_CASE |  | low | ASSUMPTION | Exchange rate used by the team case study. Sensitivity range [50, 60]. |
+| co2_shadow_price_php_per_t | 2800 | PHP/t CO2 | ASSUMPTION |  | low | ASSUMPTION | Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight. Sensitivity range [0, 5600]. |
 | distribution_voltage_kv | 0.48 | kV | INL2025 | 2025-01-30 | medium | verified | Primary distribution 480 V; secondary 240 V via step-down transformers. |
 | pv_kwp_inl | 300 | kWp | INL2025 | 2025-01-30 | medium | verified |  |
 | battery_kw_inl | 300 | kW | INL2025 | 2025-01-30 | medium | verified |  |
 | battery_kwh_inl | 300 | kWh | INL2025 | 2025-01-30 | medium | verified |  |
 | pv_kwp_case | 500 | kWp | TEAM_CASE |  | low | ASSUMPTION | Illustrative size from the team case study. |
 | battery_kwh_case | 1500 | kWh | TEAM_CASE |  | low | ASSUMPTION |  |
+| battery_kw_case | 375 | kW | TEAM_CASE |  | low | ASSUMPTION | Battery power of the team case study (0.25 C). Sensitivity range [300, 750]. |
 | cest_reserve_soc | 0.3 | fraction | BRIEF |  | medium | ASSUMPTION | CEST definition: SOC reserve floor. Design choice, not a site fact. |
+| battery_eta_oneway | 0.95 | fraction | ASSUMPTION |  | medium | ASSUMPTION | Charge and discharge efficiency each (round trip about 0.90). Sensitivity range [0.92, 0.97]. |
+| battery_soc_min | 0.2 | fraction | TEAM_CASE |  | low | ASSUMPTION | Hard lower SOC limit (team case value). The CEST reserve (0.30) sits above it. Sensitivity range [0.1, 0.3]. |
+| battery_soc_max | 0.95 | fraction | TEAM_CASE |  | low | ASSUMPTION | Sensitivity range [0.9, 1.0]. |
+| battery_soc_initial | 0.6 | fraction | TEAM_CASE |  | low | ASSUMPTION | SOC at the start of a run. Sensitivity range [0.3, 0.95]. |
+| battery_degradation_php_per_kwh | 4.0 | PHP/kWh of charge or discharge | ASSUMPTION |  | low | ASSUMPTION | 450 USD/kWh replacement (team case) / (4,000 cycles x 0.8 depth x 2 directions) x 56 PHP/USD = 3.9 PHP/kWh. Sensitivity range [2.0, 8.0]. |
+| voll_flex_php_per_kwh | 150 | PHP/kWh | ASSUMPTION |  | low | ASSUMPTION | Penalty for shedding flexible load. Above the diesel cost (about 30 PHP/kWh) so shedding is a last resort. Sensitivity range [50, 500]. |
+| risk_penalty_php_per_kwh | 50 | PHP/kWh | ASSUMPTION |  | low | ASSUMPTION | Weight on the expected critical energy shortfall if diesel stopped (Monte Carlo), averaged over the horizon. Sensitivity range [0, 200]. |
+| risk_window_h | 24 | h | ASSUMPTION |  | low | ASSUMPTION | Window over which R(t) counts a critical shortfall with diesel off. Sensitivity range [12, 48]. |
+| fuel_scarcity_penalty_php_per_kwh | 500 | PHP/kWh | ASSUMPTION |  | low | ASSUMPTION | Penalty on critical energy that fuel plus battery at the horizon end cannot cover until the expected delivery. Above voll_flex so flexible load is shed first. Sensitivity range [200, 2000]. |
 | crit_clinic_kw | 15 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [7.5, 22.5]. |
 | crit_water_kw | 20 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [10, 30]. |
 | crit_telecom_kw | 5 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [2.5, 7.5]. |
