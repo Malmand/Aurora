@@ -15,6 +15,7 @@ dependencies = [
   "requests>=2.28",
   "matplotlib>=3.7",
   "pvlib>=0.10",
+  "lightgbm>=4.0",
 ]
 
 [project.optional-dependencies]
