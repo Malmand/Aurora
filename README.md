@@ -31,6 +31,7 @@ python -m aurora.forecast.build              # Phase 2 backtest, report, figures
 python -m aurora.forecast.issue --issue 2025-07-17T16:00Z      # one 48 h forecast CSV
 python -m aurora.forecast.issue --issue 2025-07-17T16:00Z --no-nwp   # comms-loss fallback
 python -m aurora.twin.run --demo             # digital twin: A/B/C on the Mawar (Betty) 2023 window -> results/twin/
+python -m aurora.twin.run --horizon-compare  # MPC horizon: issue-aligned (default) vs fixed 48 h
 python -m aurora.twin.run --controllers C --sizing case --start 2025-07-15 --days 7 --forecast phase2   # twin on the Phase 2 backtest forecasts
 pytest
 ```

@@ -7,6 +7,7 @@
  "first_delivery_utc": "2023-05-27 16:00:00+00:00",
  "delay_days": 7,
  "horizon_h": 48,
+ "horizon_mode": "issue",
  "truth": {
   "radiation": "era5",
   "load_synthetic": "True",

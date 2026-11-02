@@ -17,6 +17,13 @@ Providers:
   Phase2Forecast       the Phase 2 backtest in data/itbayat/forecast/ (every daily
                        issue, 2022 to Oct 2026), read directly; solar scaled to the
                        run's array. Variants: AURORA bands, raw NWP mean, persistence.
+Every provider also has issue_end(t): the end of the newest forecast issued at
+or before t (exclusive). The twin sets the MPC horizon to issue_end(t) - t, so a
+plan never runs past the issued forecast into the persistence fallback tail
+(simulate.plan_horizon). Phase 2 issues are daily at 00:00 PHT (16:00 UTC), 48 h
+long, so the horizon runs from 48 h down to 25 h. Perfect and persistence have no
+issue cycle of their own; they use the same daily cycle so that value-of-forecast
+runs differ only in the forecast, not in the horizon.
 The CSV loader is ported from digital_twin/forecast_io.py (team repo, Mohamed):
 time column names, time zones, _p10/_p90 or _low/_high band names.
 """
@@ -34,6 +41,20 @@ TIME_COLS = ["timestamp", "time", "datetime", "date"]
 BAND_ALIASES = {"p10": ["_p10", "_q10", "_low"], "p50": ["_p50", "_q50", ""], "p90": ["_p90", "_q90", "_high"]}
 
 
+ISSUE_HOUR_UTC = 16     # Phase 2 issue time, 00:00 PHT
+ISSUE_LEN_H = 48        # Phase 2 issue length
+STEP = pd.Timedelta(hours=1)
+
+
+def daily_issue_end(t, hour_utc: int = ISSUE_HOUR_UTC, length_h: int = ISSUE_LEN_H) -> pd.Timestamp:
+    """End of the newest daily issue (at hour_utc, length_h long) at or before t."""
+    t = pd.Timestamp(t)
+    it = t.normalize() + pd.Timedelta(hours=hour_utc)
+    if it > t:
+        it -= pd.Timedelta(days=1)
+    return it + pd.Timedelta(hours=length_h)
+
+
 def monotone(fc: pd.DataFrame) -> pd.DataFrame:
     """Sort P10 <= P50 <= P90 per row and clip at zero (fixes quantile crossing)."""
     for b in BASES:
@@ -44,6 +65,7 @@ def monotone(fc: pd.DataFrame) -> pd.DataFrame:
 
 class PerfectForecast:
     name = "perfect"
+    issue_end = staticmethod(daily_issue_end)
 
     def __init__(self, truth: pd.DataFrame, pv_kwp: float):
         self.t, self.kwp = truth, pv_kwp
@@ -69,6 +91,7 @@ class PersistenceForecast:
     same hour on the last observed day; critical +-2 %, flexible +-10 %.
     """
     name = "persistence"
+    issue_end = staticmethod(daily_issue_end)
 
     def __init__(self, truth: pd.DataFrame, pv_kwp: float, widen: float = 1.0, fallback: bool = False):
         self.t, self.kwp, self.widen, self.fb = truth, pv_kwp, widen, fallback
@@ -175,6 +198,11 @@ class CSVForecast:
         self.solar_scale = pv_kwp / scale_kwp if scale_kwp else 1.0
         self.fb = PersistenceForecast(truth, pv_kwp, widen=1.5, fallback=True)
 
+    def issue_end(self, t):
+        """End of the newest issue at or before t (None if there is none)."""
+        j = self.keys.searchsorted(t, side="right") - 1
+        return None if j < 0 else self.issues[self.keys[j]].index[-1] + STEP
+
     def __call__(self, t, horizon: int) -> pd.DataFrame:
         idx = pd.date_range(t, periods=horizon, freq="h")
         fb = self.fb(t, horizon)
@@ -200,9 +228,10 @@ class Phase2Forecast:
 
     At step t the newest daily issue with issue_time <= t is used (issues at
     16:00 UTC = 00:00 PHT, 48 h each). Solar hours inside the issue window but
-    absent from the file are night hours (zero). Hours past the issue's 48 h
-    (up to 23 h at the end of a 48 h horizon), or with no forecast at all, come
-    from the persistence fallback with 1.5x bands and fallback=True, as in
+    absent from the file are night hours (zero). With the default issue-aligned
+    horizon the plan ends with the issue. With a fixed 48 h horizon, hours past
+    the issue's 48 h (up to 23 h), or with no forecast at all, come from the
+    persistence fallback with 1.5x bands and fallback=True, as in
     CSVForecast.
 
     variant:
@@ -249,6 +278,11 @@ class Phase2Forecast:
             self.by_issue[it] = pd.concat([s_, d_], axis=1)[COLS].astype(float)
         self.keys = pd.DatetimeIndex(sorted(self.by_issue))
         self.fb = PersistenceForecast(truth, pv_kwp, widen=1.5, fallback=True)
+
+    def issue_end(self, t):
+        """End of the newest daily issue at or before t (issue + 48 h), None if none."""
+        j = self.keys.searchsorted(t, side="right") - 1
+        return None if j < 0 else self.keys[j] + pd.Timedelta(hours=ISSUE_LEN_H)
 
     def __call__(self, t, horizon: int) -> pd.DataFrame:
         idx = pd.date_range(t, periods=horizon, freq="h")

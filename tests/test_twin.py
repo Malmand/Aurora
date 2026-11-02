@@ -197,6 +197,40 @@ def test_csv_forecast_loader(tmp_path):
     assert early["fallback"].all()
 
 
+def test_issue_aligned_horizon_runs_25_to_48_h():
+    """Daily 16:00 UTC issues of 48 h: horizon 48 h at the issue, 25 h just before the next."""
+    tr = synthetic_truth(days=3)
+    f = forecasts.PersistenceForecast(tr, P.pv_kwp)
+    it = pd.Timestamp("2024-06-02 16:00", tz="UTC")
+    hs = [simulate.plan_horizon(f, it + pd.Timedelta(hours=k), 48, "issue") for k in range(30)]
+    assert hs[0] == 48 and hs[23] == 25 and hs[24] == 48 and min(hs) == 25
+    with pytest.raises(ValueError):
+        simulate.plan_horizon(f, it, 48, "rolling")
+    # a missed issue: the newest one ends < 25 h ahead -> keep 48 h, tail is the flagged fallback
+    class Stale:
+        def issue_end(self, t):
+            return t + pd.Timedelta(hours=5)
+    assert simulate.plan_horizon(Stale(), it, 48, "issue") == 48
+
+
+def test_run_records_horizon_and_fallback_tail(tmp_path):
+    tr = synthetic_truth(days=4)
+    t0 = tr.index[24]
+    idx = pd.date_range(t0, periods=48, freq="h", tz="UTC")
+    df = pd.DataFrame({"issue_time": t0, "timestamp": idx.strftime("%Y-%m-%dT%H:%M:%SZ")})
+    for b in forecasts.BASES:
+        df[f"{b}_p10"], df[f"{b}_p50"], df[f"{b}_p90"] = 30.0, 40.0, 50.0
+    df.to_csv(tmp_path / "synthetic_issue.csv", index=False)
+    f = forecasts.CSVForecast(tmp_path, tr, P.pv_kwp)
+    out = {m: simulate.run(tr, P, "B", f, start=t0, hours=6, horizon=48, horizon_mode=m)
+           for m in ("issue", "fixed")}
+    assert out["issue"]["horizon_h"].tolist() == [48, 47, 46, 45, 44, 43]
+    assert out["issue"]["plan_fallback_h"].sum() == 0
+    assert out["fixed"]["plan_fallback_h"].tolist() == [0, 1, 2, 3, 4, 5]
+    k = metrics.kpis(out["fixed"], P)
+    assert k["plans_with_fallback_pct"] == pytest.approx(500 / 6, abs=0.1)
+
+
 def test_params_use_inl_current_state_and_both_sizings():
     assert P.n_units * P.unit_kw == pytest.approx(560.0, abs=0.5)
     assert P.diesel_php_per_l == 113
@@ -228,6 +262,13 @@ def test_phase2_forecast_reads_backtest(tmp_path):
     assert (fc["demand_flex_kW_p90"] == 3.0).all()
     late = f(it + pd.Timedelta(hours=10), 48)                             # last 10 h past the issue window
     assert late["fallback"].sum() == 10 and not late["fallback"].iloc[0]
+    # issue-aligned horizon: the plan ends with the issue, so no fallback tail
+    t10 = it + pd.Timedelta(hours=10)
+    assert f.issue_end(t10) == it + pd.Timedelta(hours=48)
+    H = simulate.plan_horizon(f, t10, 48, "issue")
+    assert H == 38 and not f(t10, H)["fallback"].any()
+    assert simulate.plan_horizon(f, t10, 48, "fixed") == 48
+    assert simulate.plan_horizon(f, it - pd.Timedelta(hours=1), 48, "issue") == 48   # no issue yet
     nwp = forecasts.Phase2Forecast(tr, 100.0, "nwp", folder=tmp_path)(it, 48)
     assert nwp.loc[first_day_step, ["solar_kW_p10", "solar_kW_p90"]].tolist() == pytest.approx([25.0, 25.0])
 

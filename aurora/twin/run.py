@@ -10,10 +10,16 @@ from data/itbayat/forecast/; phase2:nwp and phase2:persistence give the raw NWP
 mean and Phase 2 persistence for value-of-forecasting runs), csv (the Phase 2
 sample CSVs in data/itbayat/forecast/issues/) or csv:<folder> (other forecast files).
 --delay-days delays the first planned delivery after the start (stress test).
-Writes <out>/run_<ctl>.csv (hourly) and <out>/kpis.csv.
+--horizon-mode issue (default) sets the MPC horizon at each step to the end of
+the newest issued forecast (25 to 48 h for the daily 48 h issues); fixed keeps
+--horizon (48 h) at every step, with the tail past the issue from the
+persistence fallback. Writes <out>/run_<ctl>.csv (hourly) and <out>/kpis.csv.
 
 --demo reproduces docs/twin.md: typhoon Mawar (PAGASA: Betty), INL and case
 sizings, tank at 10 % when the tanker due on 28 May 2023 is delayed 7 or 14 days.
+--horizon-compare runs controller C on the same Mawar window (7-day delay) with
+the Phase 2 forecast, once with the issue-aligned horizon and once with a fixed
+48 h horizon, at both sizings (results/twin/horizon_compare_mawar2023_*).
 """
 from __future__ import annotations
 
@@ -51,7 +57,7 @@ def local_start(s: str) -> pd.Timestamp:
 
 
 def run_case(controllers, sizing, start, days, forecast, tank0, delay_days, delivery_after_h, out: Path,
-             horizon=48, progress=True):
+             horizon=48, horizon_mode="issue", progress=True):
     t0 = local_start(start)
     t1 = t0 + pd.Timedelta(days=days) + pd.Timedelta(hours=horizon + 1)
     truth = inputs.build(t0 - pd.Timedelta(days=35), t1)      # 35 days of history for persistence bands
@@ -64,18 +70,20 @@ def run_case(controllers, sizing, start, days, forecast, tank0, delay_days, deli
     rows = []
     for c in controllers:
         r = simulate.run(truth, p, c, fc, start=t0, hours=24 * days, schedule=sched, tank0=tank0,
-                         horizon=horizon, progress=progress)
+                         horizon=horizon, horizon_mode=horizon_mode, progress=progress)
         r.to_csv(out / f"run_{c}.csv", float_format="%.4g")
         k = metrics.kpis(r, p)
-        rows.append(dict(controller=c, sizing=sizing, forecast=fc.name, **k, wall_s=float(r.attrs["wall_s"]),
+        rows.append(dict(controller=c, sizing=sizing, forecast=fc.name, horizon_mode=horizon_mode, **k,
+                         wall_s=float(r.attrs["wall_s"]),
                          deliveries=r.attrs["deliveries"]))
         print(f"{sizing} {c}: diesel {k['diesel_l']:.0f} L, flex shed {k['flex_shed_kwh']:.0f} kWh, "
               f"critical unserved {k['crit_unserved_kwh']:.1f} kWh ({k['crit_outage_h']} h), "
-              f"CEST median {k['cest_median_h']} h, wall {r.attrs['wall_s']} s", flush=True)
+              f"CEST median {k['cest_median_h']} h, plans with fallback {k['plans_with_fallback_pct']} %, wall {r.attrs['wall_s']} s", flush=True)
     kp = pd.DataFrame(rows)
     kp.to_csv(out / "kpis.csv", index=False)
     meta = dict(start_local=start, days=days, sizing=sizing, forecast=forecast, tank0_l=tank0,
                 first_delivery_utc=str(first), delay_days=delay_days, horizon_h=horizon,
+                horizon_mode=horizon_mode,
                 truth=truth.attrs, params=p.as_dict())
     (out / "meta.json").write_text(json.dumps(meta, indent=1, default=str), encoding="utf-8")
     return kp
@@ -83,6 +91,22 @@ def run_case(controllers, sizing, start, days, forecast, tank0, delay_days, deli
 
 DEMO = dict(start="2023-05-27", forecast="persistence", tank0=6000.0, delivery_after_h=24)
 DEMO_DELAYS = (7, 14)        # days; each window runs until 3 days after the late tanker arrives
+COMPARE = dict(start="2023-05-27", forecast="phase2", tank0=6000.0, delivery_after_h=24, delay_days=7,
+               days=7 + 1 + 3)
+
+
+def horizon_compare(sizings=("inl", "case")):
+    """C on the Mawar window with the Phase 2 forecast: issue-aligned vs fixed 48 h horizon."""
+    allk = []
+    for sz in sizings:
+        for mode in ("issue", "fixed"):
+            kp = run_case(["C"], sz, out=OUT / f"horizon_compare_mawar2023_{mode}_{sz}", horizon_mode=mode,
+                          **COMPARE)
+            allk.append(kp)
+    k = pd.concat(allk)
+    k.to_csv(OUT / "horizon_compare_mawar2023_kpis.csv", index=False)
+    print(k.drop(columns=["deliveries"]).to_string(index=False))
+    return k
 
 
 def main(argv=None):
@@ -97,8 +121,14 @@ def main(argv=None):
     ap.add_argument("--delay-days", type=float, default=0.0)
     ap.add_argument("--delivery-after-h", type=float, default=None,
                     help="hours from start to the first planned delivery (default: half an interval)")
+    ap.add_argument("--horizon", type=int, default=48, help="MPC horizon in hours (the cap in issue mode)")
+    ap.add_argument("--horizon-mode", default="issue", choices=list(simulate.HORIZON_MODES))
+    ap.add_argument("--horizon-compare", action="store_true")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
+    if a.horizon_compare:
+        horizon_compare()
+        return
     if a.demo:
         allk = []
         for dly in DEMO_DELAYS:
@@ -113,7 +143,8 @@ def main(argv=None):
     p = params.from_site(a.sizing)
     dah = a.delivery_after_h if a.delivery_after_h is not None else p.resupply_days * 12
     out = Path(a.out) if a.out else OUT / f"run_{a.sizing}_{a.start}"
-    run_case(a.controllers, a.sizing, a.start, a.days, a.forecast, a.tank0, a.delay_days, dah, out)
+    run_case(a.controllers, a.sizing, a.start, a.days, a.forecast, a.tank0, a.delay_days, dah, out,
+             horizon=a.horizon, horizon_mode=a.horizon_mode)
 
 
 if __name__ == "__main__":
