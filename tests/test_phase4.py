@@ -20,11 +20,12 @@ def test_sweep_sizing_reproduces_inl_and_case_power():
 
 
 def test_capex_and_recommended_rule():
-    # IRENA 2025: 667 USD/kW PV, 140 USD/kWh battery; x2 island markup; +30 % at 1 h, 0 at 4 h
-    assert P.capex_usd(300, 300, 300) == pytest.approx(2 * (300 * 667 + 300 * 140 * 1.3))
-    assert P.capex_usd(500, 1500, 375) == pytest.approx(2 * (500 * 667 + 1500 * 140))
-    assert P.capex_usd(300, 300, 300, which="low") == pytest.approx(1.5 * (300 * 667 + 300 * 140))
-    assert P.capex_usd(300, 300, 300, which="high") == pytest.approx(3 * (300 * 667 + 300 * 140 * 1.6))
+    u = P.unit_costs()
+    assert P.capex_php(180, 120, 120) == pytest.approx(57_697_900)          # reproduces the Sabtang ABC
+    pv, e, w = u["base"]
+    assert pv * 180 / 57_697_900 == pytest.approx(1200 * 180 / (1200 * 180 + 260 * 120 + 540 * 120))
+    assert u["low"] == pytest.approx([1200 * 56, 260 * 56, 540 * 56])
+    assert u["high"] == pytest.approx(1.25 * u["base"])
     sw = pd.DataFrame([
         dict(controller="C", pv_kwp=600, bat_kwh=500, bat_kw=375, crit_outage_h=0, cest_median_h=30),
         dict(controller="C", pv_kwp=200, bat_kwh=1000, bat_kw=375, crit_outage_h=0, cest_median_h=40),

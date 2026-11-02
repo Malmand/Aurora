@@ -21,7 +21,7 @@ decomposition, which repeats the Phase 3 settings (64 scenarios) to reproduce
 the 2,649 and 1,718 kWh results exactly.
 
 Inputs are not measurements: ERA5 reanalysis weather, pvlib PV and the Phase 1
-SYNTHETIC load. Unit costs are ASSUMPTIONs (site.yaml).
+SYNTHETIC load. Costs in PHP: NPC Sabtang bid ceiling split with Ocon and Bertheau (2019) (site.yaml).
 """
 from __future__ import annotations
 
@@ -265,27 +265,32 @@ def sensitivity_jobs(start, pv, b):
             for lab, ov, ls, t0 in cases]
 
 
-COST_CASES = ("low", "value", "high")     # value = base
+COST_CASES = ("low", "base", "high")
 
 
-def cost_basis(site_values=None) -> dict:
-    """IRENA (2026) utility-scale unit costs (USD), the island markup and the
-    short-duration battery premium, each as (base, (low, high))."""
+def unit_costs(site_values=None) -> dict:
+    """PHP unit costs per case: {case: (PHP/kWp PV, PHP/kWh battery, PHP/kW battery)}.
+
+    base: NPC Sabtang ABC (PHP 57,697,900 for 180 kWp + 120 kW / 120 kWh) split with
+          the Ocon and Bertheau (2019) Table 1 cost structure: every Table 1 component
+          is scaled by k = ABC / (Table 1 cost of the Sabtang system in USD).
+    low:  Ocon and Bertheau (2019) Table 1 as published, times php_per_usd.
+    high: base times cost_high_factor_assumed.
+    """
     s = site_values or load_site()["values"]
-    g = lambda k: (s[k]["value"], tuple(s[k].get("range", (s[k]["value"],) * 2)))  # noqa: E731
-    return dict(pv=s["pv_capex_usd_per_kw_irena2025"]["value"], bat=s["battery_capex_usd_per_kwh_irena2025"]["value"],
-                markup=g("remote_island_markup_factor_assumed"), premium=g("battery_short_duration_premium_assumed"))
+    v = lambda k: s[k]["value"]  # noqa: E731
+    ocon = np.array([v("ocon2019_pv_capex_usd_per_kw"), v("ocon2019_battery_capex_usd_per_kwh"),
+                     v("ocon2019_battery_capex_usd_per_kw")], float)
+    sab = np.array([v("npc_sabtang_pv_kwp"), v("npc_sabtang_battery_kwh"), v("npc_sabtang_battery_kw")], float)
+    k = v("npc_sabtang_abc_php") / float(ocon @ sab)              # PHP per Table 1 USD
+    base = k * ocon
+    return {"low": ocon * v("php_per_usd"), "base": base, "high": base * v("cost_high_factor_assumed"),
+            "k_php_per_table1_usd": k}
 
 
-def capex_usd(pv_kwp, bat_kwh, bat_kw, site=None, which="value"):
-    """Capex = markup x (PV kW x IRENA PV + battery kWh x IRENA battery x (1 + premium x f)),
-    f = 1 at 1 h duration, falling linearly to 0 at 4 h. which = low | value | high
-    moves the markup and the premium together across their ranges."""
-    c = cost_basis(site)
-    pick = lambda t: t[0] if which == "value" else t[1][0 if which == "low" else 1]  # noqa: E731
-    dur = bat_kwh / bat_kw if bat_kw > 0 else 4.0
-    f = float(np.clip((4.0 - dur) / 3.0, 0.0, 1.0))
-    return pick(c["markup"]) * (pv_kwp * c["pv"] + bat_kwh * c["bat"] * (1 + pick(c["premium"]) * f))
+def capex_php(pv_kwp, bat_kwh, bat_kw, site=None, case="base"):
+    pv, e, w = unit_costs(site)[case]
+    return pv_kwp * pv + bat_kwh * e + bat_kw * w
 
 
 def load_rows(prefix=None) -> pd.DataFrame:
@@ -300,11 +305,11 @@ def recommended(sw: pd.DataFrame | None = None) -> pd.Series:
     """Smallest capex in the sweep where C has 0 critical outage h and median CEST >= 24 h."""
     sw = load_rows("sweep_") if sw is None else sw
     c = sw[sw["controller"] == "C"].copy()
-    c["capex_musd"] = [capex_usd(a, b, k) / 1e6 for a, b, k in zip(c.pv_kwp, c.bat_kwh, c.bat_kw)]
+    c["capex_mphp"] = [capex_php(a, b, k) / 1e6 for a, b, k in zip(c.pv_kwp, c.bat_kwh, c.bat_kw)]
     ok = c[(c["crit_outage_h"] == 0) & (c["cest_median_h"] >= CEST_TARGET_H)]
     if ok.empty:
         raise RuntimeError("no size in the sweep meets the criterion")
-    return ok.sort_values(["capex_musd", "bat_kwh"]).iloc[0]
+    return ok.sort_values(["capex_mphp", "bat_kwh"]).iloc[0]
 
 
 def stage_jobs(stage):

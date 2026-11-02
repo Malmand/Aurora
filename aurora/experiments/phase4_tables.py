@@ -130,7 +130,7 @@ def year_table():
             ce = h["cest_h"] if has_bat else pd.Series(0.0, index=h.index)
             fuel = h["fuel_l"].sum() * k
             out.append(dict(sizing=sz, pv_kwp=p0["pv_kwp"], bat_kwh=p0["bat_kwh"], controller=c, period=per,
-                            hours=len(h), diesel_l_per_yr=fuel, fuel_cost_mphp_per_yr=fuel * p.diesel_php_per_l / 1e6,
+                            hours=len(h), served_mwh_per_yr=served * k / 1000, diesel_l_per_yr=fuel, fuel_cost_mphp_per_yr=fuel * p.diesel_php_per_l / 1e6,
                             co2_t_per_yr=fuel * p.co2_kg_per_l / 1000,
                             renewable_share_pct=100 * (1 - h["diesel"].sum() / served),
                             crit_outage_h=int((h["unserved_crit"] > 1e-3).sum()),
@@ -158,8 +158,8 @@ def year_table():
 
 def sweep_table():
     d = P.load_rows("sweep_")
-    d["capex_musd"] = [P.capex_usd(a, b, k) / 1e6 for a, b, k in zip(d.pv_kwp, d.bat_kwh, d.bat_kw)]
-    t = d[["controller", "pv_kwp", "bat_kwh", "bat_kw", "capex_musd", "crit_outage_h", "flex_shed_kwh", "diesel_l",
+    d["capex_mphp"] = [P.capex_php(a, b, k) / 1e6 for a, b, k in zip(d.pv_kwp, d.bat_kwh, d.bat_kw)]
+    t = d[["controller", "pv_kwp", "bat_kwh", "bat_kw", "capex_mphp", "crit_outage_h", "flex_shed_kwh", "diesel_l",
            "cest_median_h", "cest_min_h", "cest_ge24_pct"]].sort_values(["controller", "pv_kwp", "bat_kwh"])
     t.to_csv(OUT / "sweep.csv", index=False)
     # marginal median CEST per extra battery step, at each PV size
@@ -170,7 +170,7 @@ def sweep_table():
     m[["controller", "pv_kwp", "bat_kwh", "cest_median_h", "cest_h_per_100kwh"]].to_csv(
         OUT / "sweep_marginal_cest.csv", index=False)
     r = P.recommended(d)
-    rec = pd.DataFrame([dict(pv_kwp=r.pv_kwp, bat_kwh=r.bat_kwh, bat_kw=r.bat_kw, capex_musd=r.capex_musd,
+    rec = pd.DataFrame([dict(pv_kwp=r.pv_kwp, bat_kwh=r.bat_kwh, bat_kw=r.bat_kw, capex_mphp=r.capex_mphp,
                              crit_outage_h=r.crit_outage_h, cest_median_h=r.cest_median_h,
                              flex_shed_kwh=r.flex_shed_kwh, diesel_l=r.diesel_l)])
     rec.to_csv(OUT / "recommended.csv", index=False)
@@ -206,31 +206,83 @@ def rec_storms_table():
     return t
 
 
+def crf(r, n):
+    return r * (1 + r) ** n / ((1 + r) ** n - 1)
+
+
+def discounted_payback(capex, net_per_yr, r, n):
+    """Years until the discounted net saving repays capex; NaN if not within n years."""
+    if net_per_yr <= 0:
+        return np.nan
+    cum, prev = 0.0, 0.0
+    for t in range(1, n + 1):
+        prev, cum = cum, cum + net_per_yr / (1 + r) ** t
+        if cum >= capex:
+            return t - 1 + (capex - prev) / (cum - prev)
+    return np.nan
+
+
 def costs_table(year_summ):
-    """Capex (low/base/high cost cases), annual fuel saving vs A and payback.
-    Annual diesel is the mean of the two full years (Nov 2024 to Oct 2026)."""
+    """Capex (low/base/high), annual fuel saving vs A, simple and discounted payback and
+    LCOE, in PHP. Annual values are the mean of the two full years (Nov 2024 to Oct 2026).
+    LCOE = (capex x CRF + O&M + fuel) / energy served; the diesel plant is sunk (no capex,
+    no diesel O&M in any option); no battery replacement within the 20 years."""
     s = load_site()["values"]
     om = s["om_frac_of_capex_per_year_assumed"]["value"]
-    usd = s["php_per_usd"]["value"]
+    r, n = s["ocon2019_wacc"]["value"], int(s["ocon2019_project_life_yr"]["value"])
     cap_kw = s["sweep_battery_c_rate_cap_kw_assumed"]["value"]
-    a = year_summ[year_summ["controller"] == "A"]["diesel_l_per_yr"].mean()     # A has no PV: same for all sizes
+    A = year_summ[year_summ["controller"] == "A"]
+    a_l, a_mwh = A["diesel_l_per_yr"].mean(), A["served_mwh_per_yr"].mean()
     rows = []
-    for r in year_summ[year_summ["controller"].isin(["B", "C"])].itertuples():
-        bat_kw = min(r.bat_kwh, cap_kw) if r.sizing.startswith("pv") else params.from_site(r.sizing).bat_kw
+    for price in (65, 113, 140):
+        rows.append(dict(sizing="diesel only", controller="A", pv_kwp=0, bat_kwh=0, bat_kw=0,
+                         diesel_price_php_per_l=price, lcoe_php_per_kwh=a_l * price / (a_mwh * 1000)))
+    for x in year_summ[year_summ["controller"].isin(["B", "C"])].itertuples():
+        bat_kw = min(x.bat_kwh, cap_kw) if x.sizing.startswith("pv") else params.from_site(x.sizing).bat_kw
         for price in (65, 113, 140):
-            sav = (a - r.diesel_l_per_yr) * price / usd          # USD per year
-            row = dict(sizing=r.sizing, pv_kwp=r.pv_kwp, bat_kwh=r.bat_kwh, bat_kw=bat_kw, controller=r.controller,
-                       diesel_price_php_per_l=price, diesel_saved_l_per_yr=a - r.diesel_l_per_yr,
-                       fuel_saving_musd_per_yr=sav / 1e6)
-            for case, lab in (("low", "low"), ("value", "base"), ("high", "high")):
-                cap = P.capex_usd(r.pv_kwp, r.bat_kwh, bat_kw, which=case)
+            sav = (a_l - x.diesel_l_per_yr) * price            # PHP per year
+            row = dict(sizing=x.sizing, controller=x.controller, pv_kwp=x.pv_kwp, bat_kwh=x.bat_kwh, bat_kw=bat_kw,
+                       diesel_price_php_per_l=price, diesel_saved_l_per_yr=a_l - x.diesel_l_per_yr,
+                       fuel_saving_mphp_per_yr=sav / 1e6)
+            for case in P.COST_CASES:
+                cap = P.capex_php(x.pv_kwp, x.bat_kwh, bat_kw, case=case)
                 net = sav - om * cap
-                row[f"capex_{lab}_musd"] = cap / 1e6
-                row[f"payback_{lab}_yr"] = cap / sav if sav > 0 else np.nan
-                row[f"payback_{lab}_with_om_yr"] = cap / net if net > 0 else np.nan
+                row[f"capex_{case}_mphp"] = cap / 1e6
+                row[f"simple_payback_{case}_yr"] = cap / sav if sav > 0 else np.nan
+                row[f"disc_payback_{case}_yr"] = discounted_payback(cap, net, r, n)
+                row[f"lcoe_{case}_php_per_kwh"] = (cap * crf(r, n) + om * cap
+                                                   + x.diesel_l_per_yr * price) / (x.served_mwh_per_yr * 1000)
             rows.append(row)
     t = pd.DataFrame(rows)
     t.to_csv(OUT / "costs.csv", index=False)
+    return t
+
+
+def cost_crosscheck():
+    """Base-case unit costs against ESMAP (2019) mini-grid capex and the IRENA (2026)
+    utility-scale benchmarks (USD at php_per_usd, ASSUMPTION)."""
+    s = load_site()["values"]
+    usd = s["php_per_usd"]["value"]
+    u = P.unit_costs()
+    rows = [dict(item="Sabtang bid (ABC) per kWp of PV, all-in", usd_per_kw=s["npc_sabtang_abc_php"]["value"]
+                 / s["npc_sabtang_pv_kwp"]["value"] / usd, reference="ESMAP 2019 mini-grid capex median ~3,900 USD/kW "
+                 "(range 1,420 to 22,689)")]
+    for sz, (pv, kwh, kw) in {"inl": (300, 300, 300), "case": (500, 1500, 375)}.items():
+        rows.append(dict(item=f"{sz} system, base case, per kWp of PV", usd_per_kw=P.capex_php(pv, kwh, kw) / pv / usd,
+                         reference="ESMAP 2019 mini-grid capex median ~3,900 USD/kW"))
+    rows += [dict(item="base PV only", usd_per_kw=u["base"][0] / usd,
+                  reference="IRENA 2026 utility-scale PV 667 USD/kW (2025)"),
+             dict(item="base battery energy (USD/kWh)", usd_per_kw=u["base"][1] / usd,
+                  reference="IRENA 2026 utility-scale 4 h battery 140 USD/kWh (2025)"),
+             dict(item="base battery at 1 h duration, energy + power (USD/kWh)",
+                  usd_per_kw=(u["base"][1] + u["base"][2]) / usd, reference="IRENA 2026 4 h battery 140 USD/kWh"),
+             dict(item="low (Ocon and Bertheau 2019) PV", usd_per_kw=u["low"][0] / usd, reference="Table 1")]
+    t = pd.DataFrame(rows)
+    t["unit_costs_php"] = ""
+    t.loc[0, "unit_costs_php"] = (f"base: PV {u['base'][0]:,.0f}/kWp, battery {u['base'][1]:,.0f}/kWh + "
+                                  f"{u['base'][2]:,.0f}/kW; low: {u['low'][0]:,.0f}, {u['low'][1]:,.0f}, "
+                                  f"{u['low'][2]:,.0f}; high = 1.25 x base")
+    t.to_csv(OUT / "cost_crosscheck.csv", index=False)
     return t
 
 
@@ -312,7 +364,7 @@ def write_all():
               "### B critical outage (h)", md(pivot(sw, "B", "crit_outage_h")),
               "### B median CEST (h)", md(pivot(sw, "B", "cest_median_h")),
               "### C flexible shed (kWh)", md(pivot(sw, "C", "flex_shed_kwh")),
-              "### Capex (MUSD)", md(pivot(sw, "C", "capex_musd"), ".2f"),
+              "### Capex, base case (M PHP)", md(pivot(sw, "C", "capex_mphp")),
               "### Recommended", md(rec)]
     se = sensitivity_table()
     if se is not None:
@@ -320,7 +372,7 @@ def write_all():
     rs = rec_storms_table()
     if rs is not None:
         parts += ["## Recommended size on all storms", md(rs)]
-    parts += ["## Costs", md(costs_table(ys).round(2))]
+    parts += ["## Costs (PHP)", md(costs_table(ys).round(2)), "### Cross-check", md(cost_crosscheck())]
     tradeoff_figure()
     (OUT / "tables.md").write_text("# Phase 4 tables (generated by aurora.experiments.phase4 tables)\n\n"
                                    + "\n\n".join(parts) + "\n", encoding="utf-8")
