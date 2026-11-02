@@ -161,9 +161,21 @@ values:
   irena2025_battery_capex_usd_per_kwh:
     {value: 140, unit: USD/kWh, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
      note: "Four-hour utility-scale battery installed cost, 2025 (p. 3 and p. 8). Transcribed by the user from the executive summary. Utility-scale reference only."}
+  npc_offgrid_cost_vs_tariff_ratio:
+    {value: [3, 4], unit: generation cost / tariff, source: PHILSTAR2026, date: 2026-05-29, confidence: low, status: verified,
+     note: "Off-grid generation costs NPC 3 to 4 times the tariff it charges (news report). Context only. Provided by the user."}
   npc_itbayat_planned_pv_kwp:
     {value: 250, unit: kWp, source: MB2021, date: 2021-05-01, confidence: low, status: verified,
      note: "NPC planned 250 kWp of PV for Itbayat (news report). Context only; not used in the model."}
+  ocon2019_battery_life_yr:
+    {value: 15, unit: years, source: OCON2019, date: 2019, confidence: medium, status: verified,
+     note: "Battery lifetime; the battery (energy and power parts) is replaced in year 15 at the same cost case. Provided by the user."}
+  aurora_capex_php_assumed:
+    {value: 2500000, unit: PHP, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [1000000, 5000000], note: "One-off AURORA controller cost: EMS computer, metering and comms links, integration and commissioning on top of the PV and battery controls that B already needs."}
+  aurora_opex_php_per_yr_assumed:
+    {value: 500000, unit: PHP/yr, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [200000, 1000000], note: "Annual AURORA software cost: NWP data, forecast retraining, maintenance and remote support."}
   om_frac_of_capex_per_year_assumed:
     {value: 0.02, unit: fraction of capex per year, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [0.01, 0.03], note: "PV and battery O&M, used for the net payback."}

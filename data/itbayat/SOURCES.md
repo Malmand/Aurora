@@ -39,6 +39,8 @@ Site documents:
 - **ESMAP2019** ESMAP (2019). *Mini Grids for Half a Billion People: Market Outlook and Handbook for Decision Makers.* Energy Sector Management Assistance Program, Technical Report 014/19, World Bank, Washington DC. [verify] URL (World Bank Open Knowledge Repository) and the table or figure with the mini-grid capex median (about 3,900 USD/kW) and range (1,420 to 22,689 USD/kW); values provided by the user.
 - **MB2021** Manila Bulletin, 1 May 2021: NPC plans 250 kWp of solar PV for Itbayat. News, used as evidence of the plan only. Provided by the user; [verify] URL and access date.
 
+- **PHILSTAR2026** Philstar, 29 May 2026: off-grid generation costs NPC 3 to 4 times the tariff. News, used as context only. Provided by the user; [verify] URL and access date.
+
 - **IPCC2006** IPCC (2006). *2006 IPCC Guidelines for National Greenhouse Gas Inventories*, Vol. 2 Energy, Ch. 1 (Table 1.2, net calorific values) and Ch. 2 (Table 2.2, default CO2 emission factors). IGES, Japan. https://www.ipcc-nggip.iges.or.jp/public/2006gl/vol2.html
 
 Project documents:
@@ -125,7 +127,11 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | esmap2019_minigrid_capex_median_usd_per_kw | 3900 | USD/kW | ESMAP2019 | 2019 | low | verified | Mini-grid capex median, about 3,900 USD/kW; range 1,420 to 22,689 USD/kW. Cross-check only. Provided by the user. |
 | irena2025_pv_capex_usd_per_kw | 667 | USD/kW | IRENA2025 | 2026-07 | medium | verified | Utility-scale PV, global weighted-average total installed cost, 2025 (Figure S1, p. 6). Transcribed by the user from the executive summary. Utility-scale reference only. |
 | irena2025_battery_capex_usd_per_kwh | 140 | USD/kWh | IRENA2025 | 2026-07 | medium | verified | Four-hour utility-scale battery installed cost, 2025 (p. 3 and p. 8). Transcribed by the user from the executive summary. Utility-scale reference only. |
+| npc_offgrid_cost_vs_tariff_ratio | [3, 4] | generation cost / tariff | PHILSTAR2026 | 2026-05-29 | low | verified | Off-grid generation costs NPC 3 to 4 times the tariff it charges (news report). Context only. Provided by the user. |
 | npc_itbayat_planned_pv_kwp | 250 | kWp | MB2021 | 2021-05-01 | low | verified | NPC planned 250 kWp of PV for Itbayat (news report). Context only; not used in the model. |
+| ocon2019_battery_life_yr | 15 | years | OCON2019 | 2019 | medium | verified | Battery lifetime; the battery (energy and power parts) is replaced in year 15 at the same cost case. Provided by the user. |
+| aurora_capex_php_assumed | 2500000 | PHP | ASSUMPTION |  | low | ASSUMPTION | One-off AURORA controller cost: EMS computer, metering and comms links, integration and commissioning on top of the PV and battery controls that B already needs. Sensitivity range [1000000, 5000000]. |
+| aurora_opex_php_per_yr_assumed | 500000 | PHP/yr | ASSUMPTION |  | low | ASSUMPTION | Annual AURORA software cost: NWP data, forecast retraining, maintenance and remote support. Sensitivity range [200000, 1000000]. |
 | om_frac_of_capex_per_year_assumed | 0.02 | fraction of capex per year | ASSUMPTION |  | low | ASSUMPTION | PV and battery O&M, used for the net payback. Sensitivity range [0.01, 0.03]. |
 | sweep_battery_c_rate_cap_kw_assumed | 375 | kW | ASSUMPTION |  | low | ASSUMPTION | Sizing sweep battery power = min(kWh x 1 per h, 375 kW). Reproduces both INL (300 kW / 300 kWh) and case (375 kW / 1,500 kWh). Sensitivity range [250, 500]. |
 | co2_shadow_price_php_per_t | 2800 | PHP/t CO2 | ASSUMPTION |  | low | ASSUMPTION | Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight. Sensitivity range [0, 5600]. |

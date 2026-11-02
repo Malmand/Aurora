@@ -288,9 +288,14 @@ def unit_costs(site_values=None) -> dict:
             "k_php_per_table1_usd": k}
 
 
-def capex_php(pv_kwp, bat_kwh, bat_kw, site=None, case="base"):
+def capex_parts_php(pv_kwp, bat_kwh, bat_kw, site=None, case="base"):
+    """(PV capex, battery capex) in PHP; battery = energy part + power part."""
     pv, e, w = unit_costs(site)[case]
-    return pv_kwp * pv + bat_kwh * e + bat_kw * w
+    return pv_kwp * pv, bat_kwh * e + bat_kw * w
+
+
+def capex_php(pv_kwp, bat_kwh, bat_kw, site=None, case="base"):
+    return sum(capex_parts_php(pv_kwp, bat_kwh, bat_kw, site, case))
 
 
 def load_rows(prefix=None) -> pd.DataFrame:

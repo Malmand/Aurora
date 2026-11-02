@@ -35,3 +35,16 @@ def test_capex_and_recommended_rule():
     ])
     r = P.recommended(sw)
     assert (r.pv_kwp, r.bat_kwh) == (200, 1000)                  # cheapest that meets both conditions
+
+
+def test_discounted_payback_with_replacement():
+    from aurora.experiments.phase4_tables import discounted_payback
+    assert discounted_payback(100, [50] * 20, 0.0) == pytest.approx(2.0)
+    assert discounted_payback(100, [10] * 20, 0.0) == pytest.approx(10.0)
+    flows = [10] * 20
+    flows[14] -= 120                  # replacement in year 15 undoes the payback; recovered? cum(20) = 80 < 100
+    assert pd.isna(discounted_payback(100, flows, 0.0))
+    flows = [20] * 20
+    flows[14] -= 60                   # capex 250: repaid in year 13, dips to 240 in year 15, repaid again in year 16
+    assert discounted_payback(250, flows, 0.0) == pytest.approx(15.5)
+    assert pd.isna(discounted_payback(100, [5] * 20, 0.0994))

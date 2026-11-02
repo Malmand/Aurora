@@ -210,52 +210,79 @@ def crf(r, n):
     return r * (1 + r) ** n / ((1 + r) ** n - 1)
 
 
-def discounted_payback(capex, net_per_yr, r, n):
-    """Years until the discounted net saving repays capex; NaN if not within n years."""
-    if net_per_yr <= 0:
+def discounted_payback(capex, cashflows, r):
+    """Years until the cumulative discounted cash flow (cashflows[t-1] in year t)
+    repays capex and stays repaid to the end of the life; NaN if it never does."""
+    cum = np.cumsum([c / (1 + r) ** t for t, c in enumerate(cashflows, start=1)])
+    ok = cum >= capex
+    if not ok[-1]:
         return np.nan
-    cum, prev = 0.0, 0.0
-    for t in range(1, n + 1):
-        prev, cum = cum, cum + net_per_yr / (1 + r) ** t
-        if cum >= capex:
-            return t - 1 + (capex - prev) / (cum - prev)
-    return np.nan
+    t = len(ok) - int(np.argmin(ok[::-1])) if not ok.all() else 0      # first year of the final repaid run
+    prev = cum[t - 1] if t >= 1 else 0.0
+    return t + (capex - prev) / (cum[t] - prev)
+
+
+def _sizes(year_summ, cap_kw):
+    for x in year_summ[year_summ["controller"] == "B"].itertuples():
+        bat_kw = min(x.bat_kwh, cap_kw) if x.sizing.startswith("pv") else params.from_site(x.sizing).bat_kw
+        yield x.sizing, x.pv_kwp, x.bat_kwh, bat_kw
 
 
 def costs_table(year_summ):
-    """Capex (low/base/high), annual fuel saving vs A, simple and discounted payback and
-    LCOE, in PHP. Annual values are the mean of the two full years (Nov 2024 to Oct 2026).
-    LCOE = (capex x CRF + O&M + fuel) / energy served; the diesel plant is sunk (no capex,
-    no diesel O&M in any option); no battery replacement within the 20 years."""
+    """Two cost layers, in PHP, from the full years (mean of Nov 2024 to Oct 2025 and Nov 2025 to Oct 2026).
+
+    Hardware, A->B: PV + battery capex (low/base/high), O&M, battery replacement in year
+    15 at the same cost case, fuel saving of B against A, simple payback (capex / fuel
+    saving), discounted payback and LCOE at the Ocon and Bertheau (2019) WACC and life.
+    LCOE = ((capex + PV of replacement) x CRF + O&M + fuel) / energy served. The diesel
+    plant is sunk in every option (no diesel capex or O&M). No salvage value at year 20.
+    AURORA, B->C: extra fuel saved by C against B, against the ASSUMED controller cost
+    (one-off plus annual), with the same WACC and life.
+    """
     s = load_site()["values"]
-    om = s["om_frac_of_capex_per_year_assumed"]["value"]
-    r, n = s["ocon2019_wacc"]["value"], int(s["ocon2019_project_life_yr"]["value"])
-    cap_kw = s["sweep_battery_c_rate_cap_kw_assumed"]["value"]
+    v = lambda k: s[k]["value"]  # noqa: E731
+    om, r, n, rep_t = (v("om_frac_of_capex_per_year_assumed"), v("ocon2019_wacc"),
+                       int(v("ocon2019_project_life_yr")), int(v("ocon2019_battery_life_yr")))
+    sw_cap, sw_op = v("aurora_capex_php_assumed"), v("aurora_opex_php_per_yr_assumed")
+    cap_kw = v("sweep_battery_c_rate_cap_kw_assumed")
+    k = crf(r, n)
     A = year_summ[year_summ["controller"] == "A"]
     a_l, a_mwh = A["diesel_l_per_yr"].mean(), A["served_mwh_per_yr"].mean()
-    rows = []
+    get = lambda sz, c, col: year_summ[(year_summ.sizing == sz) & (year_summ.controller == c)][col].iloc[0]  # noqa
+    hw, au = [], []
     for price in (65, 113, 140):
-        rows.append(dict(sizing="diesel only", controller="A", pv_kwp=0, bat_kwh=0, bat_kw=0,
-                         diesel_price_php_per_l=price, lcoe_php_per_kwh=a_l * price / (a_mwh * 1000)))
-    for x in year_summ[year_summ["controller"].isin(["B", "C"])].itertuples():
-        bat_kw = min(x.bat_kwh, cap_kw) if x.sizing.startswith("pv") else params.from_site(x.sizing).bat_kw
+        hw.append(dict(sizing="diesel only (A)", diesel_price_php_per_l=price,
+                       lcoe_base_php_per_kwh=a_l * price / (a_mwh * 1000)))
+    for sz, pv, kwh, kw in _sizes(year_summ, cap_kw):
+        b_l, b_mwh, c_l = get(sz, "B", "diesel_l_per_yr"), get(sz, "B", "served_mwh_per_yr"), get(sz, "C", "diesel_l_per_yr")
         for price in (65, 113, 140):
-            sav = (a_l - x.diesel_l_per_yr) * price            # PHP per year
-            row = dict(sizing=x.sizing, controller=x.controller, pv_kwp=x.pv_kwp, bat_kwh=x.bat_kwh, bat_kw=bat_kw,
-                       diesel_price_php_per_l=price, diesel_saved_l_per_yr=a_l - x.diesel_l_per_yr,
-                       fuel_saving_mphp_per_yr=sav / 1e6)
+            sav = (a_l - b_l) * price
+            row = dict(sizing=sz, pv_kwp=pv, bat_kwh=kwh, bat_kw=kw, diesel_price_php_per_l=price,
+                       diesel_saved_l_per_yr=a_l - b_l, fuel_saving_mphp_per_yr=sav / 1e6)
             for case in P.COST_CASES:
-                cap = P.capex_php(x.pv_kwp, x.bat_kwh, bat_kw, case=case)
-                net = sav - om * cap
+                cpv, cbat = P.capex_parts_php(pv, kwh, kw, case=case)
+                cap = cpv + cbat
+                flows = [sav - om * cap - (cbat if t == rep_t else 0.0) for t in range(1, n + 1)]
                 row[f"capex_{case}_mphp"] = cap / 1e6
+                row[f"battery_replacement_{case}_mphp"] = cbat / 1e6
                 row[f"simple_payback_{case}_yr"] = cap / sav if sav > 0 else np.nan
-                row[f"disc_payback_{case}_yr"] = discounted_payback(cap, net, r, n)
-                row[f"lcoe_{case}_php_per_kwh"] = (cap * crf(r, n) + om * cap
-                                                   + x.diesel_l_per_yr * price) / (x.served_mwh_per_yr * 1000)
-            rows.append(row)
-    t = pd.DataFrame(rows)
-    t.to_csv(OUT / "costs.csv", index=False)
-    return t
+                row[f"disc_payback_{case}_yr"] = discounted_payback(cap, flows, r)
+                row[f"lcoe_{case}_php_per_kwh"] = (((cap + cbat / (1 + r) ** rep_t) * k + om * cap + b_l * price)
+                                                   / (b_mwh * 1000))
+            hw.append(row)
+            sav_c = (b_l - c_l) * price
+            flows = [sav_c - sw_op] * n
+            au.append(dict(sizing=sz, diesel_price_php_per_l=price, extra_diesel_saved_l_per_yr=b_l - c_l,
+                           extra_fuel_saving_mphp_per_yr=sav_c / 1e6, aurora_capex_mphp=sw_cap / 1e6,
+                           aurora_opex_mphp_per_yr=sw_op / 1e6,
+                           net_saving_mphp_per_yr=(sav_c - sw_op) / 1e6,
+                           simple_payback_yr=sw_cap / (sav_c - sw_op) if sav_c > sw_op else np.nan,
+                           disc_payback_yr=discounted_payback(sw_cap, flows, r),
+                           npv_mphp=(-sw_cap + sum(f_ / (1 + r) ** t for t, f_ in enumerate(flows, 1))) / 1e6))
+    h, a = pd.DataFrame(hw), pd.DataFrame(au)
+    h.to_csv(OUT / "costs_hardware.csv", index=False)
+    a.to_csv(OUT / "costs_aurora.csv", index=False)
+    return h, a
 
 
 def cost_crosscheck():
@@ -372,7 +399,9 @@ def write_all():
     rs = rec_storms_table()
     if rs is not None:
         parts += ["## Recommended size on all storms", md(rs)]
-    parts += ["## Costs (PHP)", md(costs_table(ys).round(2)), "### Cross-check", md(cost_crosscheck())]
+    h, a = costs_table(ys)
+    parts += ["## Costs (PHP)", "### Hardware, A->B", md(h.round(2)), "### AURORA, B->C", md(a.round(2)),
+              "### Cross-check", md(cost_crosscheck())]
     tradeoff_figure()
     (OUT / "tables.md").write_text("# Phase 4 tables (generated by aurora.experiments.phase4 tables)\n\n"
                                    + "\n\n".join(parts) + "\n", encoding="utf-8")
