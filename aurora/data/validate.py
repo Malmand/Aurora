@@ -12,13 +12,13 @@ import datetime as dt
 import numpy as np
 import pandas as pd
 
-from . import paths, rawio
+from . import paths, pvmodel, rawio
 from ..plotting import style
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 # PV system for the yield check (ASSUMPTION; Phase 2 fixes the real array)
-PV = dict(tilt=20.0, azimuth=180.0, gamma_pdc=-0.0037, losses_frac=0.14, inv_eff=0.96)
+PV = pvmodel.PV
 
 
 def full_years(df: pd.DataFrame) -> pd.DataFrame:
@@ -74,20 +74,7 @@ def verdict(p, tol_ok=5.0, tol_warn=10.0):
 
 def pv_specific_yield(w: pd.DataFrame, temp: pd.Series, wind: pd.Series | None) -> pd.Series:
     """Annual AC yield (kWh/kWp/yr) per full year for a fixed-tilt array. pvlib, PVWatts."""
-    import pvlib
-    mid = w.index - pd.Timedelta(minutes=30)  # hour-ending means -> mid-interval sun position
-    sp = pvlib.solarposition.get_solarposition(mid, paths.LAT, paths.LON)
-    sp.index = w.index
-    dni_extra = pvlib.irradiance.get_extra_radiation(w.index)
-    poa = pvlib.irradiance.get_total_irradiance(
-        PV["tilt"], PV["azimuth"], sp["apparent_zenith"], sp["azimuth"],
-        w["dni_wm2"].clip(lower=0), w["ghi_wm2"].clip(lower=0), w["dhi_wm2"].clip(lower=0),
-        dni_extra=dni_extra, model="haydavies")["poa_global"].fillna(0)
-    ws = wind.reindex(w.index).fillna(1.0) if wind is not None else pd.Series(1.0, index=w.index)
-    tc = pvlib.temperature.sapm_cell(poa, temp.reindex(w.index).interpolate(), ws,
-                                     **pvlib.temperature.TEMPERATURE_MODEL_PARAMETERS["sapm"]["open_rack_glass_polymer"])
-    pdc = pvlib.pvsystem.pvwatts_dc(poa, tc, 1.0, PV["gamma_pdc"])
-    pac = (pdc * (1 - PV["losses_frac"]) * PV["inv_eff"]).clip(lower=0)
+    pac = pvmodel.pv_ac_per_kwp(w, temp, wind, PV)
     loc = pac.index.tz_convert(paths.LOCAL_TZ)
     return pac.groupby(loc.year).sum()
 
