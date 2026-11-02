@@ -19,8 +19,17 @@ STORM_COLS = ["crit_outage_h", "crit_unserved_kwh", "flex_shed_kwh", "diesel_l",
               "cest_median_h", "cest_min_h", "tank_min_l"]
 
 
-def md(df: pd.DataFrame, floatfmt=None) -> str:
-    def f(x):
+CEST_CAP_H = 72.0      # cest.cest_hours caps CEST at 72 h (censored)
+
+
+def md(df: pd.DataFrame, floatfmt=None, cest=False) -> str:
+    """Markdown table. CEST values at the 72 h cap print as '>=72 (cap)': in columns whose
+    name contains 'cest', or in every numeric cell when cest=True (CEST pivots)."""
+    def f(x, col=""):
+        if isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, bool) \
+                and (cest or "cest" in str(col)) and "gain" not in str(col) and "pct" not in str(col) \
+                and "per_100" not in str(col) and x >= CEST_CAP_H - 1e-6:
+            return "≥72 (cap)"
         if isinstance(x, (float, np.floating)):
             if np.isnan(x):
                 return ""
@@ -30,7 +39,9 @@ def md(df: pd.DataFrame, floatfmt=None) -> str:
         return str(x)
     head = "| " + " | ".join(map(str, df.columns)) + " |"
     sep = "|" + "---|" * len(df.columns)
-    return "\n".join([head, sep] + ["| " + " | ".join(f(v) for v in r) + " |" for r in df.itertuples(index=False)])
+    cols = list(df.columns)
+    return "\n".join([head, sep] + ["| " + " | ".join(f(v, c) for v, c in zip(r, cols)) + " |"
+                                     for r in df.itertuples(index=False)])
 
 
 def storms_table():
@@ -132,7 +143,7 @@ def year_table():
             out.append(dict(sizing=sz, pv_kwp=p0["pv_kwp"], bat_kwh=p0["bat_kwh"], controller=c, period=per,
                             hours=len(h), served_mwh_per_yr=served * k / 1000, diesel_l_per_yr=fuel, fuel_cost_mphp_per_yr=fuel * p.diesel_php_per_l / 1e6,
                             co2_t_per_yr=fuel * p.co2_kg_per_l / 1000,
-                            renewable_share_pct=100 * (1 - h["diesel"].sum() / served),
+                            renewable_share_pct=max(0.0, 100 * (1 - h["diesel"].sum() / served)),
                             crit_outage_h=int((h["unserved_crit"] > 1e-3).sum()),
                             flex_shed_mwh_per_yr=h["shed"].sum() * k / 1000,
                             curtail_mwh_per_yr=h["curtail"].sum() * k / 1000,
@@ -200,7 +211,7 @@ def rec_storms_table():
     d = P.load_rows("rec_")
     if d.empty:
         return None
-    t = d[["storm", "delay_days", "controller"] + STORM_COLS].sort_values(
+    t = d[["storm", "sizing", "delay_days", "controller"] + STORM_COLS].sort_values(
         ["storm", "delay_days", "controller"], key=_storm_order)
     t.to_csv(OUT / "rec_storms.csv", index=False)
     return t
@@ -228,6 +239,9 @@ def _sizes(year_summ, cap_kw):
         yield x.sizing, x.pv_kwp, x.bat_kwh, bat_kw
 
 
+WACCS = (0.04, 0.06, None)      # None = Ocon and Bertheau (2019) WACC, 9.94 %
+
+
 def costs_table(year_summ, storms_t=None):
     """Two cost layers, in PHP, from the full years (mean of Nov 2024 to Oct 2025 and Nov 2025 to Oct 2026).
 
@@ -238,26 +252,28 @@ def costs_table(year_summ, storms_t=None):
     plant is sunk in every option (no diesel capex or O&M). No salvage value at year 20.
     AURORA, B->C: extra fuel saved by C against B, against the ASSUMED controller cost
     (one-off plus annual), with the same WACC and life.
+    WACC sensitivity: every row is repeated at 4 %, 6 % and 9.94 % (column wacc);
+    arithmetic only, the simulated diesel use does not change.
     """
     s = load_site()["values"]
     v = lambda k: s[k]["value"]  # noqa: E731
-    om, r, n, rep_t = (v("om_frac_of_capex_per_year_assumed"), v("ocon2019_wacc"),
-                       int(v("ocon2019_project_life_yr")), int(v("ocon2019_battery_life_yr")))
+    om, r0, n, rep_t = (v("om_frac_of_capex_per_year_assumed"), v("ocon2019_wacc"),
+                        int(v("ocon2019_project_life_yr")), int(v("ocon2019_battery_life_yr")))
     sw_cap, sw_op = v("aurora_capex_php_assumed"), v("aurora_opex_php_per_yr_assumed")
     cap_kw = v("sweep_battery_c_rate_cap_kw_assumed")
-    k = crf(r, n)
     A = year_summ[year_summ["controller"] == "A"]
     a_l, a_mwh = A["diesel_l_per_yr"].mean(), A["served_mwh_per_yr"].mean()
     get = lambda sz, c, col: year_summ[(year_summ.sizing == sz) & (year_summ.controller == c)][col].iloc[0]  # noqa
     hw, au = [], []
     for price in (65, 113, 140):
         hw.append(dict(sizing="diesel only (A)", diesel_price_php_per_l=price,
-                       lcoe_base_php_per_kwh=a_l * price / (a_mwh * 1000)))
-    for sz, pv, kwh, kw in _sizes(year_summ, cap_kw):
+                       **{f"lcoe_{c}_php_per_kwh": a_l * price / (a_mwh * 1000) for c in P.COST_CASES}))
+    for wacc, (sz, pv, kwh, kw) in ((w_ or r0, x) for w_ in WACCS for x in _sizes(year_summ, cap_kw)):
+        r, k = wacc, crf(wacc, n)
         b_l, b_mwh, c_l = get(sz, "B", "diesel_l_per_yr"), get(sz, "B", "served_mwh_per_yr"), get(sz, "C", "diesel_l_per_yr")
         for price in (65, 113, 140):
             sav = (a_l - b_l) * price
-            row = dict(sizing=sz, pv_kwp=pv, bat_kwh=kwh, bat_kw=kw, diesel_price_php_per_l=price,
+            row = dict(sizing=sz, wacc=wacc, pv_kwp=pv, bat_kwh=kwh, bat_kw=kw, diesel_price_php_per_l=price,
                        diesel_saved_l_per_yr=a_l - b_l, fuel_saving_mphp_per_yr=sav / 1e6)
             for case in P.COST_CASES:
                 cpv, cbat = P.capex_parts_php(pv, kwh, kw, case=case)
@@ -272,7 +288,7 @@ def costs_table(year_summ, storms_t=None):
             hw.append(row)
             sav_c = (b_l - c_l) * price
             flows = [sav_c - sw_op] * n
-            au.append(dict(sizing=sz, diesel_price_php_per_l=price, extra_diesel_saved_l_per_yr=b_l - c_l,
+            au.append(dict(sizing=sz, wacc=wacc, diesel_price_php_per_l=price, extra_diesel_saved_l_per_yr=b_l - c_l,
                            extra_fuel_saving_mphp_per_yr=sav_c / 1e6, aurora_capex_mphp=sw_cap / 1e6,
                            aurora_opex_mphp_per_yr=sw_op / 1e6,
                            net_saving_mphp_per_yr=(sav_c - sw_op) / 1e6,
@@ -283,8 +299,8 @@ def costs_table(year_summ, storms_t=None):
     a["fuel_only_payback"] = np.where(a["net_saving_mphp_per_yr"] <= 0, "never (fuel saving below running cost)",
                                       np.where(a["disc_payback_yr"].isna(), "not within 20 y", "within 20 y"))
     if storms_t is not None:
-        sm, _ = aurora_resilience(storms_t)
-        a = a.merge(sm, on="sizing", how="left")
+        sm = pd.concat([aurora_resilience(storms_t, w_ or r0, write=w_ is None)[0] for w_ in WACCS])
+        a = a.merge(sm, on=["sizing", "wacc"], how="left")
     h.to_csv(OUT / "costs_hardware.csv", index=False)
     a.to_csv(OUT / "costs_aurora.csv", index=False)
     return h, a
@@ -294,7 +310,7 @@ RATE_KEYS = {"low": "fuel_disruption_rate_low_per_yr", "base": "fuel_disruption_
              "high": "fuel_disruption_rate_high_per_yr", "upper_bound": "storm_rate_within_330km_per_yr"}
 
 
-def aurora_resilience(storms_t):
+def aurora_resilience(storms_t, wacc=None, write=True):
     """AURORA's cost per critical outage hour avoided against B.
 
     Per event (leading figure): B minus C critical outage hours in each storm run
@@ -308,7 +324,8 @@ def aurora_resilience(storms_t):
     """
     s = load_site()["values"]
     v = lambda k: s[k]["value"]  # noqa: E731
-    k = crf(v("ocon2019_wacc"), int(v("ocon2019_project_life_yr")))
+    wacc = v("ocon2019_wacc") if wacc is None else wacc
+    k = crf(wacc, int(v("ocon2019_project_life_yr")))
     w = dict(zip(P.DELAYS, v("overdue_delay_weights")))
     rates = {c: v(key) for c, key in RATE_KEYS.items()}
     costs = {"low": (s["aurora_capex_php_assumed"]["range"][0], s["aurora_opex_php_per_yr_assumed"]["range"][0]),
@@ -327,7 +344,7 @@ def aurora_resilience(storms_t):
         per_ev.append(row)
     for sz, g in st.groupby("sizing", sort=False):
         e_ev = g.groupby("storm").apply(lambda x: sum(w[d] * a for d, a in zip(x.delay_days, x.avoided_h))).mean()
-        row = dict(sizing=sz, avoided_h_per_event=e_ev)
+        row = dict(sizing=sz, wacc=wacc, avoided_h_per_event=e_ev)
         for rc, lam in rates.items():
             row[f"events_per_yr_{rc}"] = lam
             row[f"avoided_h_per_yr_{rc}"] = lam * e_ev
@@ -338,7 +355,8 @@ def aurora_resilience(storms_t):
             row[f"aurora_annualised_{cc}_mphp"] = ann[cc] / 1e6
         summ.append(row)
     pe, sm = pd.DataFrame(per_ev), pd.DataFrame(summ)
-    pe.to_csv(OUT / "aurora_cost_per_event.csv", index=False)
+    if write:
+        pe.to_csv(OUT / "aurora_cost_per_event.csv", index=False)
     return sm, pe
 
 
@@ -444,9 +462,9 @@ def write_all():
               "### Effects: A->B and B->C", md(effects_year(ys).round(2))]
     sw, mg, rec = sweep_table()
     parts += ["## Sizing sweep (Mawar, 14-day delay)", "### C critical outage (h)", md(pivot(sw, "C", "crit_outage_h")),
-              "### C median CEST (h)", md(pivot(sw, "C", "cest_median_h")),
+              "### C median CEST (h)", md(pivot(sw, "C", "cest_median_h"), cest=True),
               "### B critical outage (h)", md(pivot(sw, "B", "crit_outage_h")),
-              "### B median CEST (h)", md(pivot(sw, "B", "cest_median_h")),
+              "### B median CEST (h)", md(pivot(sw, "B", "cest_median_h"), cest=True),
               "### C flexible shed (kWh)", md(pivot(sw, "C", "flex_shed_kwh")),
               "### Capex, base case (M PHP)", md(pivot(sw, "C", "capex_mphp")),
               "### Recommended", md(rec)]
@@ -456,7 +474,7 @@ def write_all():
     rs = rec_storms_table()
     if rs is not None:
         parts += ["## Recommended size on all storms", md(rs)]
-    h, a = costs_table(ys, t)
+    h, a = costs_table(ys, pd.concat([t, rs]) if rs is not None else t)
     parts += ["## Costs (PHP)", "### Hardware, A->B", md(h.round(2)), "### AURORA, B->C", md(a.round(2)),
               "### AURORA cost per critical outage hour avoided, per storm run (base controller cost)",
               md(pd.read_csv(OUT / "aurora_cost_per_event.csv").round(0)),
