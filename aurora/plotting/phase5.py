@@ -176,14 +176,26 @@ def fig_a_site_system():
     bx.add_patch(FancyBboxPatch((0.2, 7.4), 9.6, 2.5, boxstyle="round,pad=0.02,rounding_size=0.15", fc="#EAF3FA",
                                 ec=OI["blue"], lw=1.2))
     bx.text(0.45, 9.55, "AURORA control layer (software)", fontsize=7, fontweight="bold", color=OI["blue"], va="center")
-    for i_, (ttl, sub) in enumerate((("1  Forecast", "solar and demand,\n48 h ahead, P10 to P90"),
-                                     ("2  Plan", "MPC re-planned hourly,\nweather scenarios, fuel"),
-                                     ("3  Survival time", "CEST: hours critical load\nlasts if diesel stops"))):
-        x_ = 0.35 + i_ * 3.2
-        bx.text(x_ + 1.45, 8.85, ttl, ha="center", fontsize=6.4, fontweight="bold")
-        bx.text(x_ + 1.45, 8.05, sub, ha="center", fontsize=5.5, color="0.25", va="center")
-        if i_ < 2:
-            line([(x_ + 2.75, 8.85), (x_ + 3.35, 8.85)], c=OI["blue"])
+    # three equal columns; arrows centred in the gap between the step titles, measured after drawing
+    cols = (("1  Forecast", "solar and demand,\n48 h ahead,\nP10 to P90"),
+            ("2  Plan", "MPC, re-planned\nevery hour with\nweather and fuel"),
+            ("3  Survival time", "CEST: hours the\ncritical load lasts\nif diesel stops"))
+    t_y, s_y = 8.9, 8.05
+    titles = [bx.text(0, t_y, ttl, ha="left", va="center", fontsize=6.4, fontweight="bold") for ttl, _ in cols]
+    fig.canvas.draw()
+    inv = bx.transData.inverted()
+    wid = [np.diff(inv.transform(t_.get_window_extent())[:, 0])[0] for t_ in titles]
+    left, right = 1.0, 9.0                                   # titles spread with equal gaps, group centred
+    gap = (right - left - sum(wid)) / 2
+    x_ = left
+    for t_, w_, (_, sub) in zip(titles, wid, cols):
+        t_.set_x(x_)
+        bx.text(x_ + w_ / 2, s_y, sub, ha="center", va="center", fontsize=5.5, color="0.25", linespacing=1.2,
+                multialignment="center")
+        if t_ is not titles[-1]:
+            xm = x_ + w_ + gap / 2
+            line([(xm - 0.3 * gap, t_y), (xm + 0.3 * gap, t_y)], c=OI["blue"], lw=1.1)
+        x_ += w_ + gap
     # power sources, bus, loads
     box(0.2, 5.0, 2.8, 1.5, "Solar PV", "500 kWp", OI["orange"])
     box(0.2, 3.0, 2.8, 1.5, "Battery", "375 kW / 1,000 kWh", OI["blue"])
