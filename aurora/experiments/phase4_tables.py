@@ -207,28 +207,28 @@ def rec_storms_table():
 
 
 def costs_table(year_summ):
+    """Capex (low/base/high cost cases), annual fuel saving vs A and payback.
+    Annual diesel is the mean of the two full years (Nov 2024 to Oct 2026)."""
     s = load_site()["values"]
     om = s["om_frac_of_capex_per_year_assumed"]["value"]
     usd = s["php_per_usd"]["value"]
+    cap_kw = s["sweep_battery_c_rate_cap_kw_assumed"]["value"]
     a = year_summ[year_summ["controller"] == "A"]["diesel_l_per_yr"].mean()     # A has no PV: same for all sizes
     rows = []
     for r in year_summ[year_summ["controller"].isin(["B", "C"])].itertuples():
-        bat_kw = min(r.bat_kwh, s["sweep_battery_c_rate_cap_kw_assumed"]["value"]) if r.sizing.startswith("pv") \
-            else params.from_site(r.sizing).bat_kw
-        cap = {w: P.capex_usd(r.pv_kwp, r.bat_kwh, bat_kw, which=w) for w in ("value", "low", "high")}
-        saved_l = a - r.diesel_l_per_yr
+        bat_kw = min(r.bat_kwh, cap_kw) if r.sizing.startswith("pv") else params.from_site(r.sizing).bat_kw
         for price in (65, 113, 140):
-            sav = saved_l * price / usd                       # USD per year
-            net = sav - om * cap["value"]
-            rows.append(dict(cost_basis=P.cost_basis()["basis"], sizing=r.sizing, pv_kwp=r.pv_kwp, bat_kwh=r.bat_kwh, bat_kw=bat_kw,
-                             controller=r.controller, diesel_price_php_per_l=price,
-                             capex_musd=cap["value"] / 1e6, capex_low_musd=cap["low"] / 1e6,
-                             capex_high_musd=cap["high"] / 1e6, diesel_saved_l_per_yr=saved_l,
-                             fuel_saving_musd_per_yr=sav / 1e6, om_musd_per_yr=om * cap["value"] / 1e6,
-                             simple_payback_yr=cap["value"] / sav if sav > 0 else np.nan,
-                             simple_payback_low_capex_yr=cap["low"] / sav if sav > 0 else np.nan,
-                             simple_payback_high_capex_yr=cap["high"] / sav if sav > 0 else np.nan,
-                             net_payback_with_om_yr=cap["value"] / net if net > 0 else np.nan))
+            sav = (a - r.diesel_l_per_yr) * price / usd          # USD per year
+            row = dict(sizing=r.sizing, pv_kwp=r.pv_kwp, bat_kwh=r.bat_kwh, bat_kw=bat_kw, controller=r.controller,
+                       diesel_price_php_per_l=price, diesel_saved_l_per_yr=a - r.diesel_l_per_yr,
+                       fuel_saving_musd_per_yr=sav / 1e6)
+            for case, lab in (("low", "low"), ("value", "base"), ("high", "high")):
+                cap = P.capex_usd(r.pv_kwp, r.bat_kwh, bat_kw, which=case)
+                net = sav - om * cap
+                row[f"capex_{lab}_musd"] = cap / 1e6
+                row[f"payback_{lab}_yr"] = cap / sav if sav > 0 else np.nan
+                row[f"payback_{lab}_with_om_yr"] = cap / net if net > 0 else np.nan
+            rows.append(row)
     t = pd.DataFrame(rows)
     t.to_csv(OUT / "costs.csv", index=False)
     return t

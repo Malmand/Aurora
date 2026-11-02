@@ -126,32 +126,21 @@ values:
     {value: 56, unit: PHP/USD, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
      range: [50, 60], note: "Exchange rate used by the team case study."}
   # ---------------- capital costs (Phase 4) ----------------
-  # Published base costs (IRENA 2025; NREL ATB 2025 for the battery if IRENA has none)
-  # times (1 + remote-island logistics markup). The published values are `missing`
-  # until transcribed from the documents (irena.org and nrel hosts were not reachable
-  # from the cloud session). Until then the costs fall back to the interim_* values,
-  # which are all-in island ASSUMPTIONs and take no markup.
+  # Utility-scale benchmarks from IRENA (2026), scaled to a remote island by an
+  # ASSUMED markup, plus an ASSUMED premium for a short-duration battery.
+  # Cost cases: low = markup 1.5, premium 0; base = 2.0, +30 %; high = 3.0, +60 %.
   pv_capex_usd_per_kw_irena2025:
-    {value: null, unit: USD/kW, source: IRENA2025, date: 2026-07, confidence: medium, status: missing,
-     note: "Global weighted-average total installed cost of utility-scale PV in 2025. [verify] table number and value."}
+    {value: 667, unit: USD/kW, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
+     note: "Utility-scale PV, global weighted-average total installed cost, 2025 (Figure S1, p. 6). Transcribed by the user from the executive summary."}
   battery_capex_usd_per_kwh_irena2025:
-    {value: null, unit: USD/kWh, source: IRENA2025, date: 2026-07, confidence: medium, status: missing,
-     note: "Utility-scale battery storage installed cost in 2025, if the report gives one. [verify] table number, value and duration."}
-  battery_capex_usd_per_kwh_nrel_atb2025:
-    {value: null, unit: USD/kWh, source: NREL_ATB2025, date: 2025, confidence: medium, status: missing,
-     note: "4-hour utility-scale Li-ion capital cost, base year, moderate case. Used only if IRENA2025 gives no battery cost. [verify] table and dollar year."}
-  remote_island_logistics_markup_assumed:
-    {value: 0.5, unit: fraction added to the published cost, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
-     range: [0.25, 1.0], note: "Shipping to Batanes by sea, small project size, island labour and civil works. Applied to the published PV and battery costs."}
-  interim_pv_capex_usd_per_kwp_assumed:
-    {value: 1500, unit: USD/kWp, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
-     range: [1000, 2500], note: "Interim all-in island PV cost, used only while pv_capex_usd_per_kw_irena2025 is missing."}
-  interim_battery_capex_usd_per_kwh_assumed:
-    {value: 450, unit: USD/kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
-     range: [300, 700], note: "Interim battery energy cost (team case value behind battery_degradation_php_per_kwh), used only while the published values are missing."}
-  battery_pcs_capex_usd_per_kw_assumed:
-    {value: 150, unit: USD/kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
-     range: [100, 300], note: "Battery inverter (power conversion system); applies to the interim costs only, since published battery system costs include it."}
+    {value: 140, unit: USD/kWh, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
+     note: "Four-hour utility-scale battery installed cost, 2025 (p. 3 and p. 8). Transcribed by the user from the executive summary."}
+  remote_island_markup_factor_assumed:
+    {value: 2.0, unit: multiplier on the IRENA cost, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [1.5, 3.0], note: "IRENA values are utility-scale benchmarks. Covers sea freight to Batanes, small project size, island labour and civil works. Applied to PV and battery."}
+  battery_short_duration_premium_assumed:
+    {value: 0.30, unit: fraction added to the battery cost per kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.0, 0.60], note: "A 1 h battery (INL: 300 kW / 300 kWh) costs more per kWh than IRENA's 4 h benchmark. Full premium at 1 h, falling linearly to zero at 4 h."}
   om_frac_of_capex_per_year_assumed:
     {value: 0.02, unit: fraction of capex per year, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [0.01, 0.03], note: "PV and battery O&M, used for the net payback."}

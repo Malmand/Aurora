@@ -265,37 +265,27 @@ def sensitivity_jobs(start, pv, b):
             for lab, ov, ls, t0 in cases]
 
 
-def cost_basis(site_values=None) -> dict:
-    """Unit costs (USD) and their basis.
+COST_CASES = ("low", "value", "high")     # value = base
 
-    Published: PV from IRENA 2025, battery from IRENA 2025 or else NREL ATB 2025,
-    each times (1 + remote-island logistics markup); published battery system
-    costs include the inverter. Interim, while the published values are missing:
-    the all-in island ASSUMPTIONs plus a separate inverter cost.
-    which = value | low | high moves the markup (published) or the interim
-    ASSUMPTIONs (interim) across their ranges.
-    """
+
+def cost_basis(site_values=None) -> dict:
+    """IRENA (2026) utility-scale unit costs (USD), the island markup and the
+    short-duration battery premium, each as (base, (low, high))."""
     s = site_values or load_site()["values"]
-    pv, bi, bn = (s[k]["value"] for k in ("pv_capex_usd_per_kw_irena2025", "battery_capex_usd_per_kwh_irena2025",
-                                          "battery_capex_usd_per_kwh_nrel_atb2025"))
-    bat = bi if bi is not None else bn
-    if pv is not None and bat is not None:
-        mk = s["remote_island_logistics_markup_assumed"]
-        return dict(basis="published", pv=pv, bat=bat, pcs=0.0, markup=mk["value"], markup_range=mk["range"],
-                    bat_source="IRENA2025" if bi is not None else "NREL_ATB2025")
-    g = lambda k: (s[k]["value"], s[k]["range"])  # noqa: E731
-    return dict(basis="interim ASSUMPTION", pv=g("interim_pv_capex_usd_per_kwp_assumed"),
-                bat=g("interim_battery_capex_usd_per_kwh_assumed"), pcs=g("battery_pcs_capex_usd_per_kw_assumed"))
+    g = lambda k: (s[k]["value"], tuple(s[k].get("range", (s[k]["value"],) * 2)))  # noqa: E731
+    return dict(pv=s["pv_capex_usd_per_kw_irena2025"]["value"], bat=s["battery_capex_usd_per_kwh_irena2025"]["value"],
+                markup=g("remote_island_markup_factor_assumed"), premium=g("battery_short_duration_premium_assumed"))
 
 
 def capex_usd(pv_kwp, bat_kwh, bat_kw, site=None, which="value"):
+    """Capex = markup x (PV kW x IRENA PV + battery kWh x IRENA battery x (1 + premium x f)),
+    f = 1 at 1 h duration, falling linearly to 0 at 4 h. which = low | value | high
+    moves the markup and the premium together across their ranges."""
     c = cost_basis(site)
-    if c["basis"] == "published":
-        mk = {"value": c["markup"], "low": c["markup_range"][0], "high": c["markup_range"][1]}[which]
-        return (1 + mk) * (pv_kwp * c["pv"] + bat_kwh * c["bat"])
-    i = {"value": None, "low": 0, "high": 1}[which]
-    v = (lambda t: t[0]) if i is None else (lambda t: t[1][i])  # noqa: E731
-    return pv_kwp * v(c["pv"]) + bat_kwh * v(c["bat"]) + bat_kw * v(c["pcs"])
+    pick = lambda t: t[0] if which == "value" else t[1][0 if which == "low" else 1]  # noqa: E731
+    dur = bat_kwh / bat_kw if bat_kw > 0 else 4.0
+    f = float(np.clip((4.0 - dur) / 3.0, 0.0, 1.0))
+    return pick(c["markup"]) * (pv_kwp * c["pv"] + bat_kwh * c["bat"] * (1 + pick(c["premium"]) * f))
 
 
 def load_rows(prefix=None) -> pd.DataFrame:
