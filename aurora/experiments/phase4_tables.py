@@ -145,12 +145,12 @@ def year_table():
     t = pd.DataFrame(out)
     t.to_csv(OUT / "year_by_period.csv", index=False)
     num = [c for c in t.columns if c not in ("sizing", "controller", "period", "pv_kwp", "bat_kwh")]
-    g = t.groupby(["sizing", "pv_kwp", "bat_kwh", "controller"], sort=False)[num]
-    mean, lo, hi = g.mean(), g.min(), g.max()
+    gb = t.groupby(["sizing", "pv_kwp", "bat_kwh", "controller"], sort=False)
+    mean, lo, hi = gb[num].mean(), gb[num].min(), gb[num].max()
     summ = mean.copy()
     for c in ("diesel_l_per_yr", "renewable_share_pct", "cest_median_h"):
         summ[c + "_lo"], summ[c + "_hi"] = lo[c], hi[c]
-    summ["crit_outage_h"] = g["crit_outage_h"].sum()
+    summ["crit_outage_h"] = gb["crit_outage_h"].sum()
     summ = summ.reset_index()
     summ.to_csv(OUT / "year.csv", index=False)
     return t, summ
