@@ -113,9 +113,15 @@ values:
   resupply_interval_days_assumed:
     {value: 30, unit: days, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [14, 60], note: "Stands in for the missing resupply_interval_days. Each delivery tops the tank up to capacity."}
+  overdue_delay_scenarios_days:
+    {value: [3, 7, 14], unit: days after the planned delivery, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [[2, 5, 10], [5, 10, 21]], note: "Possible total delays of an overdue tanker. Scenarios already passed are dropped and the weights renormalised."}
+  overdue_delay_weights:
+    {value: [0.5, 0.3, 0.2], unit: probability, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [[0.7, 0.2, 0.1], [0.2, 0.3, 0.5]], note: "Prior weights of the delay scenarios. With the 500 vs 150 PHP/kWh penalties, flexible load is shed only when P(fuel shortfall) > 0.3."}
   overdue_resupply_days_assumed:
     {value: 7, unit: days, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
-     range: [3, 14], note: "When a tanker is overdue, the MPC plans as if it arrives this many days from now (rolling)."}
+     range: [3, 14], note: "Fallback once all delay scenarios have passed: the MPC plans as if the tanker arrives this many days from now (rolling)."}
   php_per_usd:
     {value: 56, unit: PHP/USD, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
      range: [50, 60], note: "Exchange rate used by the team case study."}

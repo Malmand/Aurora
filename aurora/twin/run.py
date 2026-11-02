@@ -10,7 +10,7 @@ perfect, persistence (twin baseline) or csv:<folder> (Phase 2 output files).
 Writes <out>/run_<ctl>.csv (hourly) and <out>/kpis.csv.
 
 --demo reproduces docs/twin.md: typhoon Mawar (PAGASA: Betty), INL and case
-sizings, tank at 10 % when the tanker due on 28 May 2023 is delayed 7 days.
+sizings, tank at 10 % when the tanker due on 28 May 2023 is delayed 7 or 14 days.
 """
 from __future__ import annotations
 
@@ -72,8 +72,8 @@ def run_case(controllers, sizing, start, days, forecast, tank0, delay_days, deli
     return kp
 
 
-DEMO = dict(start="2023-05-27", days=10, forecast="persistence", tank0=6000.0, delay_days=7,
-            delivery_after_h=24)
+DEMO = dict(start="2023-05-27", forecast="persistence", tank0=6000.0, delivery_after_h=24)
+DEMO_DELAYS = (7, 14)        # days; each window runs until 3 days after the late tanker arrives
 
 
 def main(argv=None):
@@ -92,8 +92,11 @@ def main(argv=None):
     a = ap.parse_args(argv)
     if a.demo:
         allk = []
-        for sz in ("inl", "case"):
-            allk.append(run_case(["A", "B", "C"], sz, out=OUT / f"demo_mawar2023_{sz}", **DEMO))
+        for dly in DEMO_DELAYS:
+            for sz in ("inl", "case"):
+                kp = run_case(["A", "B", "C"], sz, out=OUT / f"demo_mawar2023_delay{dly}d_{sz}",
+                              days=dly + 1 + 3, delay_days=dly, **DEMO)
+                allk.append(kp.assign(delay_days=dly))
         k = pd.concat(allk)
         k.to_csv(OUT / "demo_mawar2023_kpis.csv", index=False)
         print(k.drop(columns=["deliveries"]).to_string(index=False))

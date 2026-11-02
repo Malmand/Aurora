@@ -75,32 +75,34 @@ class AuroraMPC:
         groups = np.array_split(np.arange(self.S), self.Qg)
         return np.vstack([srt[g].mean(axis=0) for g in groups])            # (Q, H)
 
-    def _crit_need_after(self, fc, t, tank):
-        """Critical deficit (P90 critical - P10 solar, last forecast day repeated)
-        from the horizon end to the next expected delivery."""
+    def _fuel_scenarios(self, fc, t, tank):
+        """[(weight, delivery steps inside the horizon, critical kWh deficit after the
+        horizon until the next delivery)] for each delivery-delay scenario."""
         p = self.p
-        end = t + pd.Timedelta(hours=len(fc))
-        exp = tank.expected_arrivals(t, end, p.overdue_days)
-        nxt = next((a for a in exp if a >= end), None)
-        if nxt is None:
-            return 0.0
-        hours = (nxt - end) / pd.Timedelta(hours=1)
+        H = len(fc)
+        end = t + pd.Timedelta(hours=H)
         tail = fc.iloc[-24:]
         deficit_day = float(np.clip(tail["demand_critical_kW_p90"] - tail["solar_kW_p10"], 0, None).sum())
-        return deficit_day * hours / 24.0
+        out = []
+        for w, arr in tank.arrival_scenarios(t, end, p.overdue_delays, p.overdue_weights, p.overdue_days):
+            steps = sorted({int(np.ceil((a - t) / pd.Timedelta(hours=1))) for a in arr if t < a < end})
+            nxt = next((a for a in arr if a >= end), None)
+            if steps or nxt is None:
+                need = 0.0      # a delivery inside the horizon refills the tank
+            else:
+                need = deficit_day * ((nxt - end) / pd.Timedelta(hours=1)) / 24.0
+            out.append((w, steps, need))
+        return out
 
     def decide(self, t, state, actual, fc):
         p = self.p
-        H = len(fc)
         tank = state["tank"]
-        end = t + pd.Timedelta(hours=H)
-        exp = tank.expected_arrivals(t, end, p.overdue_days)
-        dsteps = sorted({int((a - t) / pd.Timedelta(hours=1)) for a in exp if t < a < end})
+        fs = self._fuel_scenarios(fc, t, tank)
+        self.last["fuel_scen"] = fs
         inp = mpc.MPCInput(
             solar=fc["solar_kW_p50"].to_numpy(), crit=fc["demand_critical_kW_p50"].to_numpy(),
             flex=fc["demand_flex_kW_p50"].to_numpy(), e0=state["soc"] * p.bat_kwh,
-            n_prev=state["n_prev"], tank0=tank.level, delivery_steps=dsteps,
-            need_q=self._need_groups(fc), crit_need_after=self._crit_need_after(fc, t, tank))
+            n_prev=state["n_prev"], tank0=tank.level, fuel_scen=fs, need_q=self._need_groups(fc))
         plan = mpc.solve(inp, p, self.time_limit)
         self.last["plan"] = plan
         return Decision(n_on=int(plan["n_on"][0]), p_diesel=float(plan["p_diesel"][0]),

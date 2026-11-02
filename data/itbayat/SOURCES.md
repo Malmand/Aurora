@@ -103,7 +103,9 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | resupply_interval_days | **missing** | days | INL2025 |  | low | missing | Not in the INL report. |
 | fuel_storage_l_assumed | 60000 | L | ASSUMPTION |  | low | ASSUMPTION | Stands in for the missing fuel_storage_l. 2 months (INL) x 991 L/day, the diesel-only use of the 2024 synthetic load (1,306 MWh/yr x 0.277 L/kWh / 365). Sensitivity range [30000, 90000]. |
 | resupply_interval_days_assumed | 30 | days | ASSUMPTION |  | low | ASSUMPTION | Stands in for the missing resupply_interval_days. Each delivery tops the tank up to capacity. Sensitivity range [14, 60]. |
-| overdue_resupply_days_assumed | 7 | days | ASSUMPTION |  | low | ASSUMPTION | When a tanker is overdue, the MPC plans as if it arrives this many days from now (rolling). Sensitivity range [3, 14]. |
+| overdue_delay_scenarios_days | [3, 7, 14] | days after the planned delivery | ASSUMPTION |  | low | ASSUMPTION | Possible total delays of an overdue tanker. Scenarios already passed are dropped and the weights renormalised. Sensitivity range [[2, 5, 10], [5, 10, 21]]. |
+| overdue_delay_weights | [0.5, 0.3, 0.2] | probability | ASSUMPTION |  | low | ASSUMPTION | Prior weights of the delay scenarios. With the 500 vs 150 PHP/kWh penalties, flexible load is shed only when P(fuel shortfall) > 0.3. Sensitivity range [[0.7, 0.2, 0.1], [0.2, 0.3, 0.5]]. |
+| overdue_resupply_days_assumed | 7 | days | ASSUMPTION |  | low | ASSUMPTION | Fallback once all delay scenarios have passed: the MPC plans as if the tanker arrives this many days from now (rolling). Sensitivity range [3, 14]. |
 | php_per_usd | 56 | PHP/USD | TEAM_CASE |  | low | ASSUMPTION | Exchange rate used by the team case study. Sensitivity range [50, 60]. |
 | co2_shadow_price_php_per_t | 2800 | PHP/t CO2 | ASSUMPTION |  | low | ASSUMPTION | Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight. Sensitivity range [0, 5600]. |
 | distribution_voltage_kv | 0.48 | kV | INL2025 | 2025-01-30 | medium | verified | Primary distribution 480 V; secondary 240 V via step-down transformers. |

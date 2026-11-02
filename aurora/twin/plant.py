@@ -76,15 +76,30 @@ class FuelTank:
             self.log.append((t, pt, self.s.capacity_l - self.level))
             self.level = self.s.capacity_l
 
-    def expected_arrivals(self, t, horizon_end, overdue_days: float) -> list:
-        """What the operator expects: planned times not yet delivered; overdue ones are
-        assumed to arrive `overdue_days` from now. Sorted list of expected times."""
-        exp = []
+    def arrival_scenarios(self, t, horizon_end, delays, weights, fallback_days: float) -> list:
+        """Belief about future deliveries: [(weight, sorted arrival times), ...].
+
+        Planned deliveries not yet due are taken as on time. An overdue delivery
+        (planned time passed, not arrived) arrives at planned + d for each delay
+        scenario d; scenarios already in the past are dropped and the weights
+        renormalised. If none is left, it arrives `fallback_days` from now.
+        """
+        on_time, overdue = [], []
         for pt in self.s.planned(t - pd.Timedelta(days=60), horizon_end + pd.Timedelta(days=self.s.interval_days)):
             if pt in self.delivered:
                 continue
-            exp.append(pt if pt > t else t + pd.Timedelta(days=overdue_days))
-        return sorted(exp)
+            (on_time if pt > t else overdue).append(pt)
+        if not overdue:
+            return [(1.0, sorted(on_time))]
+        scen = []
+        for d, w in zip(delays, weights):
+            arr = [pt + pd.Timedelta(days=d) for pt in overdue]
+            if all(a > t for a in arr) and w > 0:
+                scen.append((w, sorted(on_time + arr)))
+        if not scen:
+            return [(1.0, sorted(on_time + [t + pd.Timedelta(days=fallback_days)] * len(overdue)))]
+        tot = sum(w for w, _ in scen)
+        return [(w / tot, a) for w, a in scen]
 
 
 def unit_range(p, n):

@@ -39,6 +39,8 @@ class SystemParams:
     tank_l: float
     resupply_days: float
     overdue_days: float
+    overdue_delays: tuple       # days after the planned time
+    overdue_weights: tuple
     # economics and controller weights (PHP)
     diesel_php_per_l: float
     co2_kg_per_l: float
@@ -86,6 +88,8 @@ def from_site(sizing: str = "inl", site: dict | None = None, **override) -> Syst
         fuel_a=v("diesel_fuel_noload_l_per_h_per_kw"), fuel_b=v("diesel_fuel_slope_l_per_kwh"),
         tank_l=float(v("fuel_storage_l_assumed")), resupply_days=float(v("resupply_interval_days_assumed")),
         overdue_days=float(v("overdue_resupply_days_assumed")),
+        overdue_delays=tuple(float(x) for x in v("overdue_delay_scenarios_days")),
+        overdue_weights=tuple(float(x) for x in v("overdue_delay_weights")),
         diesel_php_per_l=float(v("diesel_price_php_per_l")), co2_kg_per_l=v("co2_kg_per_l"),
         co2_php_per_t=float(v("co2_shadow_price_php_per_t")),
         deg_php_per_kwh=v("battery_degradation_php_per_kwh"), voll_flex=float(v("voll_flex_php_per_kwh")),

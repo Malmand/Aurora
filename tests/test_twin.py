@@ -68,10 +68,22 @@ def test_fuel_tank_delayed_delivery():
     tank = plant.FuelTank(s, 100.0)
     tank.receive(t0 + pd.Timedelta(days=2))
     assert tank.level == 100.0                                   # not yet: delayed
-    exp = tank.expected_arrivals(t0 + pd.Timedelta(days=2), t0 + pd.Timedelta(days=3), overdue_days=7)
-    assert exp[0] == t0 + pd.Timedelta(days=9)                    # overdue: assumed 7 days on
     tank.receive(t0 + pd.Timedelta(days=4))
     assert tank.level == 1000.0
+
+
+def test_delay_belief_drops_passed_scenarios():
+    t0 = pd.Timestamp("2024-06-01", tz="UTC")
+    pt = t0 + pd.Timedelta(days=1)
+    tank = plant.FuelTank(plant.FuelSchedule(1000.0, 30, first=pt, delays={pt: 20}), 100.0)
+    d, w = (3, 7, 14), (0.5, 0.3, 0.2)
+    sc = tank.arrival_scenarios(pt + pd.Timedelta(hours=1), pt + pd.Timedelta(days=2), d, w, 7)
+    assert [x[0] for x in sc] == pytest.approx([0.5, 0.3, 0.2])
+    assert sc[0][1][0] == pt + pd.Timedelta(days=3)
+    sc = tank.arrival_scenarios(pt + pd.Timedelta(days=5), pt + pd.Timedelta(days=6), d, w, 7)
+    assert [x[0] for x in sc] == pytest.approx([0.6, 0.4])        # 3-day scenario has passed
+    sc = tank.arrival_scenarios(pt + pd.Timedelta(days=15), pt + pd.Timedelta(days=16), d, w, 7)
+    assert len(sc) == 1 and sc[0][1][0] == pt + pd.Timedelta(days=22)   # all passed: rolling fallback
 
 
 # ---------------------------------------------------------------- controllers, full loop
@@ -101,16 +113,37 @@ def test_mpc_protects_critical_when_fuel_is_short():
     assert out["C"]["shed"].sum() > 0
 
 
+def _inp(H=6, tank0=1e4, fuel_scen=None, e0=None, flex=50.0):
+    return mpc.MPCInput(solar=np.zeros(H), crit=np.full(H, 50.0), flex=np.full(H, flex),
+                        e0=P.soc_min * P.bat_kwh if e0 is None else e0, n_prev=0, tank0=tank0,
+                        fuel_scen=fuel_scen or [(1.0, [], 0.0)], need_q=None)
+
+
 def test_mpc_hard_critical_and_relaxed_fallback():
-    H = 6
-    base = dict(solar=np.zeros(H), crit=np.full(H, 50.0), flex=np.full(H, 50.0), e0=P.soc_min * P.bat_kwh,
-                n_prev=0, delivery_steps=[], need_q=None, crit_need_after=0.0)
-    plan = mpc.solve(mpc.MPCInput(tank0=1e4, **base), P)
-    assert not plan["relaxed"] and plan["unserved"].sum() == 0
+    inp = _inp()
+    plan = mpc.solve(inp, P)
+    assert not plan["relaxed"] and plan["unserved"].sum() == 0 and plan["shed"].sum() == 0
     bal = plan["p_diesel"] + plan["discharge"] - plan["charge"] - plan["curtail"]
-    assert np.allclose(bal, base["crit"] + base["flex"] - plan["shed"], atol=1e-5)
-    plan = mpc.solve(mpc.MPCInput(tank0=0.0, **base), P)      # no fuel, empty battery
+    assert np.allclose(bal, inp.crit + inp.flex - plan["shed"], atol=1e-5)
+    plan = mpc.solve(_inp(tank0=0.0), P)                 # no fuel at all: shed all flexible load
+    assert plan["shed"].sum() == pytest.approx(inp.flex.sum(), rel=1e-3)
+    plan = mpc.solve(_inp(), P.with_(n_units=0))          # no diesel, empty battery: infeasible
     assert plan["relaxed"] and plan["unserved"].sum() > 0
+
+
+def test_mpc_sheds_only_when_weighted_fuel_shortfall_is_likely():
+    """Fuel covers critical and flexible load for the horizon; afterwards only some
+    delay scenarios run short. Shed iff P(short) * 500 > 150 PHP/kWh."""
+    H = 6
+    p = P.with_(risk_php_per_kwh=0.0)
+    tank0 = 300.0                                         # about 6 h of 150 kW
+    big = 2000.0                                          # kWh of critical deficit after the horizon
+    shed = {}
+    for label, scen in {"p0.2": [(0.8, [], 0.0), (0.2, [], big)],
+                        "p0.5": [(0.5, [], 0.0), (0.5, [], big)]}.items():
+        shed[label] = mpc.solve(_inp(H, tank0, scen, flex=100.0), p)["shed"].sum()
+    assert shed["p0.2"] == pytest.approx(0.0, abs=1e-6)
+    assert shed["p0.5"] > 100.0
 
 
 # ---------------------------------------------------------------- CEST and risk
