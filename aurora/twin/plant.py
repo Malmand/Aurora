@@ -6,7 +6,9 @@ battery): diesel runs at its set point, the battery absorbs the mismatch; when
 the battery cannot, diesel moves within its committed range, then more units
 start (fuel permitting), then flexible load is shed, and only then critical
 load goes unserved. A surplus goes to the battery, then diesel turns down
-(and units stop), then PV is curtailed. The energy balance closes exactly:
+(and units stop), then PV is curtailed. A unit is never stopped if that would leave
+load unserved: below its minimum loading it keeps running there and the excess goes
+to a dump load (fuel is burned at minimum load). The energy balance closes exactly:
 
     pv_used + diesel + discharge = charge + crit_served + flex_served
 """
@@ -160,8 +162,11 @@ def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, d
             n += 1                                 # start another unit
             res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
         while res[5] > EPS and n > 0:
-            n -= 1                                 # stop a unit that cannot be loaded
-            res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
+            alt = _dispatch(p, n - 1, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
+            if alt[4] > res[4] + EPS:
+                break                              # stopping would black out load: keep the unit at
+            n -= 1                                 # minimum load and dump the excess (res[5])
+            res = alt
         return n, res
 
     B = int(getattr(p, "n_flex_blocks", 0) or 0)
@@ -169,7 +174,7 @@ def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, d
         # model v1: flexible load shed by the exact kW
         shed = min(max(dec.shed_flex, 0.0), flex)
         n, res = balance(crit + flex - shed)
-        pd_, dis, ch, curt, short, _ = res
+        pd_, dis, ch, curt, short, over = res
         s2 = min(short, flex - shed)               # flexible first
         shed += s2
         unserved = short - s2                      # critical only as a last resort
@@ -187,19 +192,21 @@ def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, d
             if short <= EPS or k == B:
                 break
             k = min(B, k + max(1, int(np.ceil(short / blk - 1e-9))))
-        pd_, dis, ch, curt, short, _ = res
+        pd_, dis, ch, curt, short, over = res
         shed = k * blk
         unserved = lost_crit + short               # after every block is cut
     if n == 0:
-        pd_ = 0.0
+        pd_, over = 0.0, 0.0
 
     flex_served = flex - shed
     crit_served = crit - unserved
     pv_used = solar - curt
-    fuel = p.fuel_l(n, pd_) if n else 0.0
+    fuel = p.fuel_l(n, pd_) if n else 0.0          # fuel at the unit's actual (minimum) loading
+    dump = over
+    pd_ = pd_ - over                               # energy delivered; the rest goes to a dump load
     soc_new = soc + (ch * p.eta - dis / p.eta) / E if E > 0 else 0.0
     resid = pv_used + pd_ + dis - ch - crit_served - flex_served
     return dict(solar=solar, pv_used=pv_used, curtail=curt, diesel=pd_, n_on=n, fuel_l=fuel,
                 charge=ch, discharge=dis, soc_start=soc, soc_end=soc_new,
                 crit=crit, flex=flex, shed=shed, unserved_crit=unserved,
-                tank_start=tank_l, tank_end=tank_l - fuel, balance_resid=resid)
+                tank_start=tank_l, tank_end=tank_l - fuel, balance_resid=resid, dump=dump)

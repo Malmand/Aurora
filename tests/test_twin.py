@@ -345,3 +345,15 @@ def test_mpc_fuel_reserve_is_priced():
                        n_prev=0, tank0=260.0, fuel_scen=[(1.0, [], 0.0)], need_q=None)
     plan = mpc.solve(inp, PV2)
     assert plan["fuel_deficit_l"][0] > 0          # running down past the 250 L reserve is penalised
+
+
+def test_diesel_below_min_load_keeps_running_with_dump_load():
+    """No battery, load below one unit's minimum loading: the unit runs at minimum
+    load, the excess is dumped, and nothing is unserved (it used to black out)."""
+    lo = P.unit_kw * P.min_load_frac
+    load = 0.6 * lo
+    o = plant.step(P, 0.5, 1e5, 0.0, 0.5 * load, 0.5 * load, plant.Decision(n_on=1, p_diesel=load),
+                   has_battery=False)
+    assert o["n_on"] == 1 and o["unserved_crit"] == 0 and o["shed"] == pytest.approx(0)
+    assert o["dump"] == pytest.approx(lo - load) and o["diesel"] == pytest.approx(load)
+    assert o["fuel_l"] == pytest.approx(P.fuel_l(1, lo)) and abs(o["balance_resid"]) < 1e-9
