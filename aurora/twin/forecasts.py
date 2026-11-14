@@ -295,3 +295,41 @@ class Phase2Forecast:
         fc.loc[miss, COLS] = fb.loc[miss, COLS]
         fc["fallback"] = miss.to_numpy()
         return monotone(fc)
+
+
+class CriticalBand:
+    """Model v2: critical-demand bands that reflect real variability.
+
+    The Phase 2 demand model was trained on the fixed synthetic critical schedule,
+    so its critical bands have zero width. Here P10/P90 = P50 x (1 -/+ z sigma),
+    z = 1.2816, with sigma the critical-demand variability (site.yaml); bands that
+    are already wider are kept."""
+
+    def __init__(self, fc, sigma: float):
+        self.fc, self.k = fc, 1.2816 * float(sigma)
+        self.name = fc.name
+        self.issue_end = getattr(fc, "issue_end", None)
+
+    def __call__(self, t, horizon):
+        out = self.fc(t, horizon)
+        p50 = out["demand_critical_kW_p50"]
+        out["demand_critical_kW_p10"] = np.minimum(out["demand_critical_kW_p10"], p50 * (1 - self.k))
+        out["demand_critical_kW_p90"] = np.maximum(out["demand_critical_kW_p90"], p50 * (1 + self.k))
+        return out
+
+
+class ScaledSolarAfter:
+    """Stress test: solar bands times `factor` from `t_hit` on (the operator sees the
+    damage in the meter readings and the forecast is scaled to match)."""
+
+    def __init__(self, fc, t_hit, factor: float):
+        self.fc, self.t_hit, self.k = fc, pd.Timestamp(t_hit), float(factor)
+        self.name = fc.name
+        self.issue_end = getattr(fc, "issue_end", None)
+
+    def __call__(self, t, horizon):
+        out = self.fc(t, horizon)
+        hit = out.index >= self.t_hit
+        for q in ("p10", "p50", "p90"):
+            out.loc[hit, f"solar_kW_{q}"] = out.loc[hit, f"solar_kW_{q}"] * self.k
+        return out

@@ -167,3 +167,41 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# ---------------------------------------------------------------- impact, model v2 (Phase 4b)
+P4B = paths.ROOT / "results" / "phase4b"
+COL4 = {"A": INK, "B": "#9AA5B1", "O": OI["orange"], "C": OI["blue"]}
+NAME4 = {"A": "Diesel only (today)", "B": "Solar + battery,\nno plan", "O": "Solar + battery,\ncareful operator",
+         "C": "Solar + battery,\nAURORA"}
+
+
+def impact_v2(imp: dict | None = None):
+    """One slide, one message: in a 14-day fuel crisis only AURORA keeps BOTH the
+    clinic and the homes powered. Mean of three real typhoons, chosen size."""
+    import json
+    plt = _plt()
+    imp = imp or json.loads((P4B / "impact.json").read_text(encoding="utf-8"))
+    clinic, homes = imp["storm14_clinic_dark_h_mean"], imp["storm14_homes_cut_h_mean"]
+    order = [c for c in ("A", "B", "O", "C") if c in clinic]
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5.6), sharey=True, gridspec_kw={"wspace": 0.08})
+    y = np.arange(len(order))[::-1]
+    for ax, vals, title in ((axes[0], clinic, "Clinic, water, phones:\nhours without power"),
+                            (axes[1], homes, "Homes:\nhours with power cut")):
+        v = [vals[c] for c in order]
+        ax.barh(y, v, height=0.62, color=[COL4[c] for c in order])
+        top = max(v) if max(v) > 0 else 1
+        for yy, vv, c in zip(y, v, order):
+            ax.text(vv + top * 0.02, yy, f"{vv:.0f} h", va="center", fontsize=22, fontweight="bold",
+                    color=COL4[c] if c != "B" else SOFT)
+        ax.set_xlim(0, top * 1.25)
+        ax.set_title(title, fontsize=21, loc="left", color=INK, pad=12)
+        ax.set_xticks([])
+        ax.spines["bottom"].set_visible(False)
+        ax.tick_params(axis="y", length=0)
+    axes[0].set_yticks(y)
+    axes[0].set_yticklabels([NAME4[c] for c in order], fontsize=19)
+    for lab, c in zip(axes[0].get_yticklabels(), order):
+        lab.set_fontweight("bold" if c == "C" else "normal")
+    axes[1].spines["left"].set_visible(False)
+    _save(fig, "impact_v2_two_outcomes")

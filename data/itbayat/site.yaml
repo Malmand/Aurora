@@ -253,6 +253,26 @@ values:
     {value: 500, unit: PHP/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
      range: [200, 2000], note: "Penalty on critical energy that fuel plus battery at the horizon end cannot cover until the expected delivery. Above voll_flex so flexible load is shed first."}
 
+  # ---------------- model v2 (Phase 4b): realism fixes ----------------
+  flex_feeder_blocks:
+    {value: 4, unit: blocks, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [2, 8], note: "Flexible (household) load is cut in whole feeder blocks by line staff, not by the exact kW. Model v2; model v1 (Phase 4) shed continuously."}
+  crit_noise_sigma:
+    {value: 0.12, unit: fraction, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.05, 0.25], note: "Hour-to-hour variability of critical demand around its synthetic schedule (AR(1) multiplicative, stationary SD). Model v1 had a fixed schedule."}
+  crit_noise_rho:
+    {value: 0.9, unit: "-", source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.7, 0.97], note: "AR(1) coefficient of the critical-demand variability (hourly)."}
+  fuel_reserve_l_assumed:
+    {value: 250, unit: L, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 500], note: "Fuel AURORA's plan tries not to go below (about 12 h of one unit at minimum load), so a generator can still start. Fixes the 12.7 L near-miss of model v1."}
+  operator_plan_delay_days_assumed:
+    {value: 14, unit: d, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [7, 21], note: "Rationing operator (controller O): once the tanker is overdue, it rations fuel so the tank lasts until this many days after the planned delivery (the longest delay scenario), as NPC and BATANELCO did with curtailment in 2022 and 2023."}
+  operator_sfc_loading_assumed:
+    {value: 0.7, unit: fraction, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.5, 0.9], note: "Average generator loading the operator assumes when converting energy to litres."}
+
   # ---------------- critical loads (synthetic load model) ----------------
   # No public measurements. Ratings are planning assumptions; Phase 4 runs +-50 %.
   crit_clinic_kw:

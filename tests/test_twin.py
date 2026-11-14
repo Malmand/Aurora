@@ -287,3 +287,61 @@ def test_phase2_csv_is_read_at_step_start(tmp_path):
     fc = forecasts.read_forecast_csv(next(tmp_path.glob("*.csv")))
     assert fc.index[0] == it and len(fc) == 48
     assert fc.loc[w[10] - pd.Timedelta(hours=1), "solar_kW_p50"] == pytest.approx(20.0)
+
+
+# ---------------------------------------------------------------- model v2 (Phase 4b)
+PV2 = params.v2(P)
+
+
+def test_v2_sheds_whole_feeder_blocks_and_closes_balance():
+    blk = 100.0 / PV2.n_flex_blocks
+    o = plant.step(PV2, 0.5, 1e5, 0.0, 50, 100, plant.Decision(n_on=0, shed_flex=10))
+    assert o["shed"] == pytest.approx(blk)                          # planned 10 kW -> one whole block
+    o = plant.step(PV2, PV2.soc_min, 0.0, 0.0, 50, 100, plant.Decision())
+    assert o["shed"] == pytest.approx(100) and o["unserved_crit"] == pytest.approx(50)
+    assert abs(o["balance_resid"]) < 1e-9
+    q = PV2.with_(crit_shared_frac=0.2)                             # clinic on the last feeder
+    o = plant.step(q, q.soc_min, 1e5, 0.0, 50, 100, plant.Decision())
+    assert o["unserved_crit"] == pytest.approx(0.0)                 # fuel: nothing is cut
+
+
+def test_v1_shedding_unchanged():
+    o = plant.step(P, P.soc_min, 0.0, 0.0, 50, 100, plant.Decision(n_on=1, p_diesel=150))
+    assert o["shed"] == pytest.approx(100) and o["unserved_crit"] == pytest.approx(50)
+
+
+def test_rationing_operator_cuts_only_when_tanker_is_late_and_fuel_is_short():
+    t0 = pd.Timestamp("2024-06-01", tz="UTC")
+    pt = t0 + pd.Timedelta(days=1)
+    op = controllers.RationingOperator(PV2)
+    op.hist = [(160.0, 50.0, 0.0)] * 24                              # night-like: no sun
+    on_time = plant.FuelTank(plant.FuelSchedule(1e5, 30, first=pt), 500.0)
+    assert op.cut_share(t0, on_time) == 0.0                          # not overdue
+    late = plant.FuelTank(plant.FuelSchedule(1e5, 30, first=pt, delays={pt: 14}), 500.0)
+    f = op.cut_share(pt + pd.Timedelta(hours=2), late)
+    assert 0.0 < f <= 1.0                                            # overdue and short
+    full = plant.FuelTank(plant.FuelSchedule(1e5, 30, first=pt, delays={pt: 14}), 1e5)
+    assert op.cut_share(pt + pd.Timedelta(hours=2), full) == 0.0     # enough fuel
+
+
+def test_rationing_operator_run_closes_balance():
+    tr = synthetic_truth(days=3)
+    fc = forecasts.PerfectForecast(tr, PV2.pv_kwp)
+    run = simulate.run(tr, PV2, "O", fc, hours=24, horizon=24)
+    check_physics(run, PV2)
+
+
+def test_critical_band_widens_zero_width_demand():
+    tr = synthetic_truth(days=3)
+    fc = forecasts.CriticalBand(forecasts.PerfectForecast(tr, P.pv_kwp), 0.12)
+    out = fc(tr.index[0], 24)
+    assert (out["demand_critical_kW_p90"] > out["demand_critical_kW_p50"]).all()
+    assert (out["demand_critical_kW_p10"] < out["demand_critical_kW_p50"]).all()
+
+
+def test_mpc_fuel_reserve_is_priced():
+    H = 6
+    inp = mpc.MPCInput(solar=np.zeros(H), crit=np.full(H, 50.0), flex=np.full(H, 50.0), e0=PV2.soc_min * PV2.bat_kwh,
+                       n_prev=0, tank0=260.0, fuel_scen=[(1.0, [], 0.0)], need_q=None)
+    plan = mpc.solve(inp, PV2)
+    assert plan["fuel_deficit_l"][0] > 0          # running down past the 250 L reserve is penalised

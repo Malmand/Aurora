@@ -153,20 +153,43 @@ def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, d
     dis_max = min(p.bat_kw, max(soc - p.soc_min, 0) * E * p.eta) if E > 0 else 0.0
     ch_max = min(p.bat_kw, max(p.soc_max - soc, 0) * E / p.eta) if E > 0 else 0.0
 
-    shed = min(max(dec.shed_flex, 0.0), flex)
-    load = crit + flex - shed
-    n = max_units_for_fuel(p, tank_l, int(np.clip(dec.n_on, 0, p.n_units)))
-    res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
-    while res[4] > EPS and n < p.n_units and max_units_for_fuel(p, tank_l, n + 1) == n + 1:
-        n += 1                                     # start another unit
+    def balance(load):
+        n = max_units_for_fuel(p, tank_l, int(np.clip(dec.n_on, 0, p.n_units)))
         res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
-    while res[5] > EPS and n > 0:
-        n -= 1                                     # stop a unit that cannot be loaded
-        res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
-    pd_, dis, ch, curt, short, _ = res
-    s2 = min(short, flex - shed)                   # flexible first
-    shed += s2
-    unserved = short - s2                          # critical only as a last resort
+        while res[4] > EPS and n < p.n_units and max_units_for_fuel(p, tank_l, n + 1) == n + 1:
+            n += 1                                 # start another unit
+            res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
+        while res[5] > EPS and n > 0:
+            n -= 1                                 # stop a unit that cannot be loaded
+            res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
+        return n, res
+
+    B = int(getattr(p, "n_flex_blocks", 0) or 0)
+    if B <= 0 or flex <= EPS:
+        # model v1: flexible load shed by the exact kW
+        shed = min(max(dec.shed_flex, 0.0), flex)
+        n, res = balance(crit + flex - shed)
+        pd_, dis, ch, curt, short, _ = res
+        s2 = min(short, flex - shed)               # flexible first
+        shed += s2
+        unserved = short - s2                      # critical only as a last resort
+    else:
+        # model v2: whole feeder blocks; the planned cut is rounded up, the emergency
+        # cut adds blocks until the shortfall is covered. With crit_shared_frac > 0 the
+        # last block also carries that share of the critical load (stress test).
+        blk = flex / B
+        k = min(B, int(np.ceil(max(dec.shed_flex, 0.0) / blk - 1e-6)))
+        fs = float(getattr(p, "crit_shared_frac", 0.0) or 0.0)
+        while True:
+            lost_crit = crit * fs if (k == B and fs > 0) else 0.0
+            n, res = balance(crit - lost_crit + flex - k * blk)
+            short = res[4]
+            if short <= EPS or k == B:
+                break
+            k = min(B, k + max(1, int(np.ceil(short / blk - 1e-9))))
+        pd_, dis, ch, curt, short, _ = res
+        shed = k * blk
+        unserved = lost_crit + short               # after every block is cut
     if n == 0:
         pd_ = 0.0
 
