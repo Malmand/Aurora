@@ -177,31 +177,47 @@ NAME4 = {"A": "Diesel only (today)", "B": "Solar + battery,\nno plan", "O": "Sol
 
 
 def impact_v2(imp: dict | None = None):
-    """One slide, one message: in a 14-day fuel crisis only AURORA keeps BOTH the
-    clinic and the homes powered. Mean of three real typhoons, chosen size."""
+    """One slide, one message: in a 14-day fuel crisis AURORA keeps the clinic on AND
+    cuts homes for far fewer hours than rationing by hand. Mean of three real typhoons."""
     import json
     plt = _plt()
     imp = imp or json.loads((P4B / "impact.json").read_text(encoding="utf-8"))
     clinic, homes = imp["storm14_clinic_dark_h_mean"], imp["storm14_homes_cut_h_mean"]
     order = [c for c in ("A", "B", "O", "C") if c in clinic]
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5.6), sharey=True, gridspec_kw={"wspace": 0.08})
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5.6), sharey=True, gridspec_kw={"wspace": 0.12})
     y = np.arange(len(order))[::-1]
+    pos = dict(zip(order, y))
+
+    def lab(v):
+        v = round(v)
+        return f"{v} h  ({v / 24:.0f} days)" if v >= 48 else f"{v} h"
+
     for ax, vals, title in ((axes[0], clinic, "Clinic, water, phones:\nhours without power"),
                             (axes[1], homes, "Homes:\nhours with power cut")):
         v = [vals[c] for c in order]
         ax.barh(y, v, height=0.62, color=[COL4[c] for c in order])
-        top = max(v) if max(v) > 0 else 1
+        top = max(max(v), 1)
         for yy, vv, c in zip(y, v, order):
-            ax.text(vv + top * 0.02, yy, f"{vv:.0f} h", va="center", fontsize=22, fontweight="bold",
+            ax.text(vv + top * 0.02, yy, lab(vv), va="center", fontsize=22, fontweight="bold",
                     color=COL4[c] if c != "B" else SOFT)
-        ax.set_xlim(0, top * 1.25)
+        ax.set_xlim(0, top * 1.75)
         ax.set_title(title, fontsize=21, loc="left", color=INK, pad=12)
         ax.set_xticks([])
         ax.spines["bottom"].set_visible(False)
         ax.tick_params(axis="y", length=0)
+    if "O" in homes and "C" in homes and homes["O"] > 0:
+        cut = 100 * (1 - homes["C"] / homes["O"])
+        top = max(max(homes[c] for c in order), 1)
+        xb = max(homes["O"], homes["C"]) + top * 0.62
+        yo, yc = pos["O"] - 0.3, pos["C"]               # start just under the operator's label
+        axes[1].plot([xb, xb], [yo, yc], color=OI["blue"], lw=2.5, solid_capstyle="butt")
+        for yy in (yo, yc):
+            axes[1].plot([xb - top * 0.025, xb], [yy, yy], color=OI["blue"], lw=2.5)
+        axes[1].text(xb + top * 0.03, (yo + yc) / 2, f"{cut:.0f} %\nfewer", va="center",
+                     ha="left", fontsize=22, fontweight="bold", color=OI["blue"])
     axes[0].set_yticks(y)
     axes[0].set_yticklabels([NAME4[c] for c in order], fontsize=19)
-    for lab, c in zip(axes[0].get_yticklabels(), order):
-        lab.set_fontweight("bold" if c == "C" else "normal")
+    for lb, c in zip(axes[0].get_yticklabels(), order):
+        lb.set_fontweight("bold" if c == "C" else "normal")
     axes[1].spines["left"].set_visible(False)
     _save(fig, "impact_v2_two_outcomes")
