@@ -20,12 +20,13 @@ Stress tests at the chosen size, tanker 14 days late, all three storms:
   clinic_shared the clinic shares the last household feeder (cut with it)
 
 Stage A: sizing sweep on all three storms (B, O, C) and the three storms at the
-INL size (A, B, O, C). Stage B: at the chosen size, the three storms at 3, 7 and
+INL size and at NPC's own planned size, 180 kWp / 120 kWh (A, B, O, C). Stage B: at the chosen size, the three storms at 3, 7 and
 14 days late, two full years (Nov 2024 to Oct 2026), the stress tests and the
 value of forecasting. Jobs write results/phase4b/jobs/<id>.json and are skipped
 if that file exists, so a stopped run resumes.
 
-Inputs are not measurements: ERA5 weather, pvlib PV, the Phase 1 SYNTHETIC load.
+Inputs are not measurements: ERA5 weather, pvlib PV, the Phase 1 SYNTHETIC load
+(calibrated to NPC's annual peak and gross generation for Itbayat DPP).
 """
 from __future__ import annotations
 
@@ -191,6 +192,7 @@ def stage_jobs(stage):
     if stage == "A":
         jobs = sweep_jobs(st)
         jobs += [storm_job(k, ev, d, ALL, "inl", sizing="inl") for k, ev in st.iterrows() for d in DELAYS]
+        jobs += [storm_job(k, ev, d, ALL, "npc", sizing="npc") for k, ev in st.iterrows() for d in DELAYS]
         return jobs
     r = recommended()
     pv, b = int(r.pv_kwp), int(r.bat_kwh)

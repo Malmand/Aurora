@@ -15,6 +15,7 @@ from ..data.site import load_site, value
 SIZINGS = {
     "inl": ("pv_kwp_inl", "battery_kw_inl", "battery_kwh_inl"),
     "case": ("pv_kwp_case", "battery_kw_case", "battery_kwh_case"),
+    "npc": ("pv_kwp_npc", "battery_kw_npc", "battery_kwh_npc"),      # NPC's own plan for Itbayat
 }
 
 

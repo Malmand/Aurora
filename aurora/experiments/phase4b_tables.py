@@ -104,7 +104,8 @@ def write_all():
     OUT.mkdir(parents=True, exist_ok=True)
     md = ["# Phase 4b results (model v2)\n",
           "Controllers: " + "; ".join(f"**{k}** {v}" for k, v in NAMES.items()) + ".\n",
-          "Inputs are not measurements: ERA5 weather, pvlib PV, SYNTHETIC load with critical-demand variability. "
+          "Inputs are not measurements: ERA5 weather, pvlib PV, SYNTHETIC load calibrated to NPC's annual peak and "
+          "gross generation for Itbayat DPP, with critical-demand variability. "
           "CEST is capped at 72 h (≥72 h).\n"]
     sw = rows[rows["group"] == "sweep"]
     if not sw.empty:
@@ -127,7 +128,8 @@ def write_all():
                _md(nd), ""]
     else:
         rec = None
-    for grp, title in (("rec", "Storms at the chosen size"), ("inl", "Storms at the INL size (300 kWp / 300 kWh)")):
+    for grp, title in (("rec", "Storms at the chosen size"), ("inl", "Storms at the INL size (300 kWp / 300 kWh)"),
+                       ("npc", "Storms at NPC's planned size (180 kWp / 120 kWh)")):
         t = storm_table(rows, grp)
         if not t.empty:
             t.to_csv(OUT / f"storms_{grp}.csv", index=False)
