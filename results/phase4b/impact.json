@@ -1,0 +1,289 @@
+{
+ "model": "v2",
+ "size": {
+  "pv_kwp": 300,
+  "bat_kwh": 1500,
+  "bat_kw": 375.0,
+  "capex_mphp_base": 176.1,
+  "meets_target": true
+ },
+ "storm14_clinic_dark_h": {
+  "A": {
+   "mawar2023": 200.0,
+   "mekkhala2026": 226.0,
+   "ragasa2025": 199.0
+  },
+  "B": {
+   "mawar2023": 56.0,
+   "mekkhala2026": 102.0,
+   "ragasa2025": 66.0
+  },
+  "C": {
+   "mawar2023": 0.0,
+   "mekkhala2026": 0.0,
+   "ragasa2025": 0.0
+  },
+  "O": {
+   "mawar2023": 0.0,
+   "mekkhala2026": 0.0,
+   "ragasa2025": 0.0
+  }
+ },
+ "storm14_clinic_dark_h_mean": {
+  "A": 208.3,
+  "B": 74.7,
+  "C": 0.0,
+  "O": 0.0
+ },
+ "storm14_homes_cut_h": {
+  "A": {
+   "mawar2023": 201.0,
+   "mekkhala2026": 226.0,
+   "ragasa2025": 200.0
+  },
+  "B": {
+   "mawar2023": 66.0,
+   "mekkhala2026": 128.0,
+   "ragasa2025": 80.0
+  },
+  "C": {
+   "mawar2023": 107.0,
+   "mekkhala2026": 175.0,
+   "ragasa2025": 133.0
+  },
+  "O": {
+   "mawar2023": 230.0,
+   "mekkhala2026": 267.0,
+   "ragasa2025": 235.0
+  }
+ },
+ "storm14_homes_cut_h_mean": {
+  "A": 209.0,
+  "B": 91.3,
+  "C": 138.3,
+  "O": 244.0
+ },
+ "storm14_homes_energy_cut_pct": {
+  "A": {
+   "mawar2023": 48.1,
+   "mekkhala2026": 52.9,
+   "ragasa2025": 46.7
+  },
+  "B": {
+   "mawar2023": 16.1,
+   "mekkhala2026": 29.1,
+   "ragasa2025": 19.1
+  },
+  "C": {
+   "mawar2023": 17.9,
+   "mekkhala2026": 34.7,
+   "ragasa2025": 21.8
+  },
+  "O": {
+   "mawar2023": 24.1,
+   "mekkhala2026": 39.7,
+   "ragasa2025": 28.8
+  }
+ },
+ "storm14_homes_energy_cut_pct_mean": {
+  "A": 49.2,
+  "B": 21.4,
+  "C": 24.8,
+  "O": 30.9
+ },
+ "storm14_survival_median_h": {
+  "A": {
+   "mawar2023": 0.0,
+   "mekkhala2026": 0.0,
+   "ragasa2025": 0.0
+  },
+  "B": {
+   "mawar2023": 0.0,
+   "mekkhala2026": 0.0,
+   "ragasa2025": 0.0
+  },
+  "C": {
+   "mawar2023": 29.7,
+   "mekkhala2026": 40.1,
+   "ragasa2025": 27.6
+  },
+  "O": {
+   "mawar2023": 0.0,
+   "mekkhala2026": 0.0,
+   "ragasa2025": 0.0
+  }
+ },
+ "storm14_survival_median_h_mean": {
+  "A": 0.0,
+  "B": 0.0,
+  "C": 32.5,
+  "O": 0.0
+ },
+ "storm14_diesel_l": {
+  "A": {
+   "mawar2023": 8661.0,
+   "mekkhala2026": 9285.0,
+   "ragasa2025": 8757.0
+  },
+  "B": {
+   "mawar2023": 8150.0,
+   "mekkhala2026": 8147.0,
+   "ragasa2025": 7612.0
+  },
+  "C": {
+   "mawar2023": 7980.0,
+   "mekkhala2026": 7937.0,
+   "ragasa2025": 7444.0
+  },
+  "O": {
+   "mawar2023": 8060.0,
+   "mekkhala2026": 8075.0,
+   "ragasa2025": 7511.0
+  }
+ },
+ "storm14_diesel_l_mean": {
+  "A": 8901.0,
+  "B": 7969.7,
+  "C": 7787.0,
+  "O": 7882.0
+ },
+ "stress": [
+  {
+   "stress": "clinic_shared",
+   "controller": "A",
+   "clinic_dark_h_max": 226,
+   "clinic_dark_h_mean": 208.66666666666666,
+   "homes_cut_h_mean": 209.0
+  },
+  {
+   "stress": "clinic_shared",
+   "controller": "B",
+   "clinic_dark_h_max": 109,
+   "clinic_dark_h_mean": 78.0,
+   "homes_cut_h_mean": 90.66666666666667
+  },
+  {
+   "stress": "clinic_shared",
+   "controller": "C",
+   "clinic_dark_h_max": 100,
+   "clinic_dark_h_mean": 71.66666666666667,
+   "homes_cut_h_mean": 134.0
+  },
+  {
+   "stress": "clinic_shared",
+   "controller": "O",
+   "clinic_dark_h_max": 26,
+   "clinic_dark_h_mean": 11.666666666666666,
+   "homes_cut_h_mean": 243.66666666666666
+  },
+  {
+   "stress": "comms_down",
+   "controller": "A",
+   "clinic_dark_h_max": 226,
+   "clinic_dark_h_mean": 208.33333333333334,
+   "homes_cut_h_mean": 209.0
+  },
+  {
+   "stress": "comms_down",
+   "controller": "B",
+   "clinic_dark_h_max": 102,
+   "clinic_dark_h_mean": 74.66666666666667,
+   "homes_cut_h_mean": 91.33333333333333
+  },
+  {
+   "stress": "comms_down",
+   "controller": "C",
+   "clinic_dark_h_max": 0,
+   "clinic_dark_h_mean": 0.0,
+   "homes_cut_h_mean": 160.33333333333334
+  },
+  {
+   "stress": "comms_down",
+   "controller": "O",
+   "clinic_dark_h_max": 0,
+   "clinic_dark_h_mean": 0.0,
+   "homes_cut_h_mean": 244.0
+  },
+  {
+   "stress": "gen_fail",
+   "controller": "A",
+   "clinic_dark_h_max": 204,
+   "clinic_dark_h_mean": 192.33333333333334,
+   "homes_cut_h_mean": 234.0
+  },
+  {
+   "stress": "gen_fail",
+   "controller": "B",
+   "clinic_dark_h_max": 79,
+   "clinic_dark_h_mean": 55.666666666666664,
+   "homes_cut_h_mean": 113.33333333333333
+  },
+  {
+   "stress": "gen_fail",
+   "controller": "C",
+   "clinic_dark_h_max": 0,
+   "clinic_dark_h_mean": 0.0,
+   "homes_cut_h_mean": 139.33333333333334
+  },
+  {
+   "stress": "gen_fail",
+   "controller": "O",
+   "clinic_dark_h_max": 0,
+   "clinic_dark_h_mean": 0.0,
+   "homes_cut_h_mean": 257.6666666666667
+  },
+  {
+   "stress": "pv_damage",
+   "controller": "A",
+   "clinic_dark_h_max": 226,
+   "clinic_dark_h_mean": 208.33333333333334,
+   "homes_cut_h_mean": 209.0
+  },
+  {
+   "stress": "pv_damage",
+   "controller": "B",
+   "clinic_dark_h_max": 132,
+   "clinic_dark_h_mean": 120.33333333333333,
+   "homes_cut_h_mean": 163.66666666666666
+  },
+  {
+   "stress": "pv_damage",
+   "controller": "C",
+   "clinic_dark_h_max": 0,
+   "clinic_dark_h_mean": 0.0,
+   "homes_cut_h_mean": 220.0
+  },
+  {
+   "stress": "pv_damage",
+   "controller": "O",
+   "clinic_dark_h_max": 0,
+   "clinic_dark_h_mean": 0.0,
+   "homes_cut_h_mean": 319.3333333333333
+  }
+ ],
+ "year": {
+  "diesel_l": {
+   "A": 341909,
+   "B": 232814,
+   "C": 215729,
+   "O": 232814
+  },
+  "co2_t": {
+   "A": 916,
+   "B": 624,
+   "C": 578,
+   "O": 624
+  },
+  "survival_median_h": {
+   "A": 0.0,
+   "B": 0.0,
+   "C": 26.9,
+   "O": 0.0
+  },
+  "diesel_saved_l_A_to_C": 126181,
+  "co2_saved_t_A_to_C": 338,
+  "fuel_saved_mphp_A_to_C": 14.3,
+  "diesel_price_php_per_l": 113.0
+ },
+ "population": 3128
+}

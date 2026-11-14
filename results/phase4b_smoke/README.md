@@ -8,3 +8,5 @@ operator, C AURORA. Sizes: 500 kWp / 1,000 kWh (`cal_*`) and NPC's planned 180 k
 
 These feed the draft impact slide (`impact_smoke.json`, `figures/deck/impact_v2_two_outcomes.png`). The full
 Phase 4b run (`python -m aurora.experiments.phase4b run --stage A/B`) replaces them; the size it picks may differ.
+
+**Superseded** by the full run in `results/phase4b/` (14 Nov 2026), which picked 300 kWp / 1,500 kWh.
