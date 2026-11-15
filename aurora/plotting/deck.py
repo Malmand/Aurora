@@ -148,12 +148,12 @@ def breakeven():
                 va="bottom" if up else "top", fontsize=20, fontweight="bold", color=c)
     ax.axhline(0, color=INK, lw=1.2)
     ax.axvline(100, color="0.5", lw=1.2, ls=":")
-    ax.text(98.5, -190, "NPC Sabtang\nbid price", fontsize=18, color=SOFT, va="bottom", ha="right")
+    ax.text(98.5, -190, "NPC Sabtang\nbudget", fontsize=18, color=SOFT, va="bottom", ha="right")
     ax.text(3, 25, "pays back", fontsize=19, color=SOFT)
     ax.text(3, -45, "does not pay back", fontsize=19, color=SOFT)
     ax.set_xlim(0, 130)
     ax.set_ylim(-200, 290)
-    ax.set_xlabel("Installed cost (% of NPC Sabtang bid price)")
+    ax.set_xlabel("Installed cost (% of NPC Sabtang budget)")
     ax.set_ylabel("20-year value (M PHP)")
     ax.legend(frameon=False, loc="upper right", fontsize=19, bbox_to_anchor=(1.0, 0.9))
     _save(fig, "breakeven_price")
@@ -295,7 +295,7 @@ def breakeven_v2():
                     fontweight="bold", color=col, alpha=a, va="bottom" if price > 100 else "top")
     ax.axhline(0, color=INK, lw=1.2)
     ax.axvline(100, color="0.5", lw=1.2, ls=":")
-    ax.text(98, -170, "NPC Sabtang\nbid price", ha="right", fontsize=18, color=SOFT)
+    ax.text(98, -170, "NPC Sabtang\nbudget", ha="right", fontsize=18, color=SOFT)
     ax.text(3, 12, "pays back", fontsize=18, color=SOFT)
     ax.text(3, -40, "does not pay back", fontsize=18, color=SOFT)
     from matplotlib.lines import Line2D
@@ -304,7 +304,7 @@ def breakeven_v2():
 ],
               frameon=False, loc="upper right", fontsize=16)
     ax.set_xlim(0, 130)
-    ax.set_xlabel("Installed cost (% of NPC Sabtang bid price)")
+    ax.set_xlabel("Installed cost (% of NPC Sabtang budget)")
     ax.set_ylabel("20-year value (M PHP)")
     _save(fig, "breakeven_v2")
 
