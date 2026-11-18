@@ -20,6 +20,7 @@ Scores: pinball loss per level, CRPS approximated from the 19 levels
 doi:10.1198/016214506000001437). For a deterministic forecast this reduces
 exactly to the MAE, so point baselines are scored on the same scale.
 """
+
 from __future__ import annotations
 
 import math
@@ -29,9 +30,20 @@ import pandas as pd
 
 from .features import QUANTILES
 
-LGB_PARAMS = dict(learning_rate=0.05, num_leaves=15, min_data_in_leaf=100, bagging_fraction=0.8,
-                  bagging_freq=1, feature_fraction=0.7, lambda_l2=1.0, verbose=-1, num_threads=4,
-                  seed=2026, deterministic=True, force_row_wise=True)
+LGB_PARAMS = dict(
+    learning_rate=0.05,
+    num_leaves=15,
+    min_data_in_leaf=100,
+    bagging_fraction=0.8,
+    bagging_freq=1,
+    feature_fraction=0.7,
+    lambda_l2=1.0,
+    verbose=-1,
+    num_threads=4,
+    seed=2026,
+    deterministic=True,
+    force_row_wise=True,
+)
 N_ROUNDS = 250
 MIN_GROUP = 150
 
@@ -68,9 +80,18 @@ def offsets(scores: np.ndarray, levels=QUANTILES) -> np.ndarray:
     return np.array([np.quantile(scores[:, j], _conf_level(t, n)) for j, t in enumerate(levels)])
 
 
-def calibrate(Q: np.ndarray, groups: pd.DataFrame, pool_scores: np.ndarray, pool_groups: pd.DataFrame,
-              keys=("lead_day", "season"), fallback_keys=("lead_day",), keep_median=True,
-              lo=0.0, hi=None, levels=QUANTILES) -> tuple[np.ndarray, np.ndarray]:
+def calibrate(
+    Q: np.ndarray,
+    groups: pd.DataFrame,
+    pool_scores: np.ndarray,
+    pool_groups: pd.DataFrame,
+    keys=("lead_day", "season"),
+    fallback_keys=("lead_day",),
+    keep_median=True,
+    lo=0.0,
+    hi=None,
+    levels=QUANTILES,
+) -> tuple[np.ndarray, np.ndarray]:
     """Shift each quantile by its conformal offset for the row's group. Returns (Q_cal, ok flag)."""
     out = Q.copy()
     ok = np.zeros(len(Q), bool)
@@ -125,8 +146,12 @@ def crps_ensemble(y: np.ndarray, E: np.ndarray) -> np.ndarray:
 
 def point_scores(y, f) -> dict:
     e = np.asarray(f, float) - np.asarray(y, float)
-    return {"n": int(np.isfinite(e).sum()), "MAE": np.nanmean(np.abs(e)),
-            "RMSE": float(np.sqrt(np.nanmean(e ** 2))), "bias": np.nanmean(e)}
+    return {
+        "n": int(np.isfinite(e).sum()),
+        "MAE": np.nanmean(np.abs(e)),
+        "RMSE": float(np.sqrt(np.nanmean(e**2))),
+        "bias": np.nanmean(e),
+    }
 
 
 def band_scores(y, lo, hi) -> dict:

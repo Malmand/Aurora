@@ -1,4 +1,5 @@
 """Conversion tests with small hand-made inputs (fixtures, not site data)."""
+
 import importlib.util
 import datetime as dt
 
@@ -9,10 +10,12 @@ from aurora.data import paths, rawio
 
 
 def test_previous_runs_columns():
-    h = {"time": ["2024-06-01T00:00", "2024-06-01T01:00"],
-         "shortwave_radiation": [100.0, 200.0],
-         "shortwave_radiation_previous_day1": [110.0, 190.0],
-         "temperature_2m_previous_day2": [28.0, 28.5]}
+    h = {
+        "time": ["2024-06-01T00:00", "2024-06-01T01:00"],
+        "shortwave_radiation": [100.0, 200.0],
+        "shortwave_radiation_previous_day1": [110.0, 190.0],
+        "temperature_2m_previous_day2": [28.0, 28.5],
+    }
     df = rawio.om_previous_runs_to_frame(h)
     assert list(df.columns) == ["ghi_wm2_d0", "ghi_wm2_d1", "temp_c_d2"]
     assert str(df.index.tz) == "UTC"
@@ -21,9 +24,25 @@ def test_previous_runs_columns():
 def test_cds_conversion_units_and_dni():
     idx = pd.date_range("2024-06-01 01:00", periods=6, freq="h", tz="UTC")  # local morning to noon
     ssrd = np.array([1.8e6, 2.5e6, 3.0e6, 3.2e6, 3.3e6, 3.0e6])  # J/m2 per hour
-    raw = pd.DataFrame({"ssrd": ssrd, "fdir": 0.6 * ssrd, "t2m": 301.15, "d2m": 297.15,
-                        "tp": 0.001, "msl": 100800.0, "sp": 100700.0, "tcc": 0.5, "lcc": 0.2,
-                        "mcc": 0.1, "hcc": 0.3, "u10": 3.0, "v10": -4.0, "fg10": 8.0}, index=idx)
+    raw = pd.DataFrame(
+        {
+            "ssrd": ssrd,
+            "fdir": 0.6 * ssrd,
+            "t2m": 301.15,
+            "d2m": 297.15,
+            "tp": 0.001,
+            "msl": 100800.0,
+            "sp": 100700.0,
+            "tcc": 0.5,
+            "lcc": 0.2,
+            "mcc": 0.1,
+            "hcc": 0.3,
+            "u10": 3.0,
+            "v10": -4.0,
+            "fg10": 8.0,
+        },
+        index=idx,
+    )
     out = rawio.cds_to_schema(raw)
     assert np.allclose(out["ghi_wm2"], ssrd / 3600)
     assert np.allclose(out["dhi_wm2"], 0.4 * ssrd / 3600)

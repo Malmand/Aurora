@@ -2,6 +2,7 @@
 
 CLAUDE.md: if a download is blocked, stop and report. Never substitute data.
 """
+
 from __future__ import annotations
 
 import time
@@ -10,12 +11,14 @@ from pathlib import Path
 import requests
 
 
-class DownloadBlocked(RuntimeError):
+class DownloadBlocked(RuntimeError):  # noqa: N818 (name used across scripts and tests)
     """Raised when a source cannot be reached (network policy, quota, outage)."""
 
 
-def get(url: str, params: dict | None = None, timeout: float = 120,
-        retries: int = 4, backoff: float = 4.0) -> requests.Response:
+def get(
+    url: str, params: dict | None = None, timeout: float = 120, retries: int = 4, backoff: float = 4.0
+) -> requests.Response:
+    """GET with retries and exponential backoff; raise DownloadBlocked if every attempt fails."""
     last = None
     for attempt in range(retries):
         try:
@@ -34,7 +37,7 @@ def get(url: str, params: dict | None = None, timeout: float = 120,
                         last = f"API error: {js.get('reason')}"
                         if "limit" in str(js.get("reason", "")).lower():
                             break  # quota: retrying now will not help
-                        time.sleep(backoff * 2 ** attempt)
+                        time.sleep(backoff * 2**attempt)
                         continue
                 return r
             last = f"HTTP {r.status_code}: {r.text[:200]}"
@@ -42,12 +45,13 @@ def get(url: str, params: dict | None = None, timeout: float = 120,
                 break
             if r.status_code == 429 and "limit" in r.text.lower():
                 break  # daily quota: retrying now will not help
-        time.sleep(backoff * 2 ** attempt)
+        time.sleep(backoff * 2**attempt)
     raise DownloadBlocked(f"{url} -> {last}")
 
 
-def get_json(url: str, params: dict | None = None, timeout: float = 120, retries: int = 4,
-             backoff: float = 4.0) -> dict:
+def get_json(
+    url: str, params: dict | None = None, timeout: float = 120, retries: int = 4, backoff: float = 4.0
+) -> dict:
     """GET and parse JSON. A 200 response that is not JSON (empty body, HTML error page
     from a gateway or timeout) is retried, then raised as DownloadBlocked with a snippet."""
     last = None
@@ -58,7 +62,7 @@ def get_json(url: str, params: dict | None = None, timeout: float = 120, retries
         except ValueError:
             body = r.text.strip().replace("\n", " ")[:200] or "<empty body>"
             last = f"HTTP {r.status_code}, not JSON ({r.headers.get('content-type', '?')}): {body}"
-            time.sleep(backoff * 2 ** attempt)
+            time.sleep(backoff * 2**attempt)
     raise DownloadBlocked(f"{url} -> {last}")
 
 

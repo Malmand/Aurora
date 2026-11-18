@@ -33,6 +33,7 @@ v_e values stored energy at the diesel energy it displaces. If the hard model is
 infeasible (fuel or battery physically cannot carry critical load), a relaxed
 model with critical slack at 1e5 PHP/kWh is solved and flagged.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -52,18 +53,24 @@ def _var(m, name, lo=None, hi=None, cat="Continuous"):
 
 @dataclass
 class MPCInput:
-    solar: np.ndarray           # P50 (H,)
+    solar: np.ndarray  # P50 (H,)
     crit: np.ndarray
     flex: np.ndarray
-    e0: float                   # battery energy now (kWh)
-    n_prev: int                 # units on in the previous step
-    tank0: float                # fuel now (L)
-    fuel_scen: list             # [(weight, delivery_steps, crit_need_after_kWh), ...] delivery belief
-    need_q: np.ndarray | None   # (Q, H) survival need per scenario group
+    e0: float  # battery energy now (kWh)
+    n_prev: int  # units on in the previous step
+    tank0: float  # fuel now (L)
+    fuel_scen: list  # [(weight, delivery_steps, crit_need_after_kWh), ...] delivery belief
+    need_q: np.ndarray | None  # (Q, H) survival need per scenario group
 
 
-def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = False,
-          exclusive_battery: bool = False):
+def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = False, exclusive_battery: bool = False):
+    """Solve one MPC step and return the plan (arrays over the horizon).
+
+    Minimises fuel and CO2 cost, unit starts, battery wear, flexible shedding, the survival-risk term and
+    the fuel-scarcity penalty, subject to energy balance, unit limits, battery dynamics and the fuel tank in
+    each delivery scenario. Critical load is a hard constraint unless `relax_critical` is set (used only if
+    the problem is infeasible).
+    """
     H = len(inp.solar)
     E = p.bat_kwh
     m = pulp.LpProblem("aurora", pulp.LpMinimize)
@@ -80,12 +87,12 @@ def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = Fal
     K = range(len(inp.fuel_scen))
     # fuel level per delivery scenario; may go negative (= fuel borrowed), which is penalised
     V = [[None] + [_var(m, f"V{k}_{t}", None, vmax) for t in range(1, H + 1)] for k in K]
-    ub = [_var(m, f"u{k}", 0) for k in K]          # largest fuel deficit in scenario k (L)
+    ub = [_var(m, f"u{k}", 0) for k in K]  # largest fuel deficit in scenario k (L)
     uc = [_var(m, f"uc{t}", 0, float(inp.crit[t])) for t in T] if relax_critical else None
 
     cf = p.fuel_cost_per_l
     reserve = float(getattr(p, "fuel_reserve_l", 0.0) or 0.0)
-    fuel =[p.fuel_a * p.unit_kw * n[t] + p.fuel_b * pd_[t] for t in T]
+    fuel = [p.fuel_a * p.unit_kw * n[t] + p.fuel_b * pd_[t] for t in T]
     obj = []
     e_prev = inp.e0
     v_prev = [inp.tank0 for _ in K]
@@ -114,8 +121,12 @@ def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = Fal
             m += pc[t] == 0
             m += px[t] == 0
         # shedding slightly cheaper later: among equal plans, defer shedding (the tanker may come)
-        obj += [cf * fuel[t], p.deg_php_per_kwh * (pc[t] + px[t]), p.voll_flex * (1 - 1e-3 * t / H) * sh[t],
-                p.start_cost_php * st[t]]
+        obj += [
+            cf * fuel[t],
+            p.deg_php_per_kwh * (pc[t] + px[t]),
+            p.voll_flex * (1 - 1e-3 * t / H) * sh[t],
+            p.start_cost_php * st[t],
+        ]
         if relax_critical:
             obj.append(CRIT_SLACK_PHP * uc[t])
         e_prev, n_prev = e[t + 1], n[t]
@@ -125,7 +136,7 @@ def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = Fal
     if inp.need_q is not None and E > 0 and p.risk_php_per_kwh > 0:
         Qn = inp.need_q.shape[0]
         w_r = p.risk_php_per_kwh / (H * Qn)
-        for t in range(1, H):        # e[t] is the energy at the start of step t
+        for t in range(1, H):  # e[t] is the energy at the start of step t
             for q in range(Qn):
                 need = float(inp.need_q[q, t])
                 if need <= 0:
@@ -143,7 +154,7 @@ def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = Fal
             w = _var(m, f"w{k}", 0)
             m += w >= need_k - (1.0 / p.sfc_min_load) * (V[k][H] + ub[k]) - (e[H] - floor), f"autonomy{k}"
             obj.append(c * w)
-    v_e = 0.9 * p.eta * p.fuel_b * cf      # value of stored energy left at the horizon end
+    v_e = 0.9 * p.eta * p.fuel_b * cf  # value of stored energy left at the horizon end
     if E > 0:
         obj.append(-v_e * e[H])
     m += pulp.lpSum(obj)
@@ -155,10 +166,22 @@ def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = Fal
         if not relax_critical:
             return solve(inp, p, time_limit, relax_critical=True, exclusive_battery=exclusive_battery)
         raise RuntimeError(f"MPC failed: {pulp.LpStatus[status]}")
-    val = lambda xs: np.array([x.value() or 0.0 for x in xs])  # noqa: E731
-    plan = dict(p_diesel=val(pd_), n_on=np.rint(val(n)).astype(int), charge=val(pc), discharge=val(px),
-                curtail=val(cu), shed=val(sh), energy=np.r_[inp.e0, val(e[1:])], tank=np.r_[inp.tank0, val(V[0][1:])],
-                fuel_deficit_l=val(ub),
-                unserved=val(uc) if relax_critical else np.zeros(H),
-                objective=pulp.value(m.objective), relaxed=relax_critical)
+
+    def val(xs):
+        return np.array([x.value() or 0.0 for x in xs])
+
+    plan = dict(
+        p_diesel=val(pd_),
+        n_on=np.rint(val(n)).astype(int),
+        charge=val(pc),
+        discharge=val(px),
+        curtail=val(cu),
+        shed=val(sh),
+        energy=np.r_[inp.e0, val(e[1:])],
+        tank=np.r_[inp.tank0, val(V[0][1:])],
+        fuel_deficit_l=val(ub),
+        unserved=val(uc) if relax_critical else np.zeros(H),
+        objective=pulp.value(m.objective),
+        relaxed=relax_critical,
+    )
     return plan

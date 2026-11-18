@@ -23,6 +23,7 @@ Datasets
              lead days 0, 1, 2
   ibtracs    IBTrACS v04r01 West Pacific tracks, seasons 2014 onwards
 """
+
 from __future__ import annotations
 
 import argparse
@@ -41,21 +42,30 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from aurora.data import paths, rawio  # noqa: E402
-from aurora.data.http import DownloadBlocked, download, get, get_json  # noqa: E402
+from aurora.data.http import DownloadBlocked, download, get_json  # noqa: E402
 
 ERA5_OM_URL = "https://archive-api.open-meteo.com/v1/archive"
 SAT_URL = "https://satellite-api.open-meteo.com/v1/archive"
 PREV_URL = "https://previous-runs-api.open-meteo.com/v1/forecast"
 POWER_URL = "https://power.larc.nasa.gov/api/temporal/hourly/point"
-IBTRACS_URL = ("https://www.ncei.noaa.gov/data/international-best-track-archive-for-"
-               "climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.WP.list.v04r01.csv")
-POWER_VARS = {"ALLSKY_SFC_SW_DWN": "ghi_wm2", "ALLSKY_SFC_SW_DNI": "dni_wm2",
-              "ALLSKY_SFC_SW_DIFF": "dhi_wm2", "CLRSKY_SFC_SW_DWN": "ghi_clear_wm2",
-              "T2M": "temp_c", "RH2M": "rh_pct", "WS10M": "wind_ms", "PS": "sp_hpa"}
+IBTRACS_URL = (
+    "https://www.ncei.noaa.gov/data/international-best-track-archive-for-"
+    "climate-stewardship-ibtracs/v04r01/access/csv/ibtracs.WP.list.v04r01.csv"
+)
+POWER_VARS = {
+    "ALLSKY_SFC_SW_DWN": "ghi_wm2",
+    "ALLSKY_SFC_SW_DNI": "dni_wm2",
+    "ALLSKY_SFC_SW_DIFF": "dhi_wm2",
+    "CLRSKY_SFC_SW_DWN": "ghi_clear_wm2",
+    "T2M": "temp_c",
+    "RH2M": "rh_pct",
+    "WS10M": "wind_ms",
+    "PS": "sp_hpa",
+}
 
 CACHE = paths.RAW_DIR / "cache"
 START = dt.date(2015, 1, 1)
-NWP_START = dt.date(2022, 1, 1)   # earliest date requested; empty leading rows are dropped
+NWP_START = dt.date(2022, 1, 1)  # earliest date requested; empty leading rows are dropped
 PAUSE_S = 1.0
 
 
@@ -91,30 +101,41 @@ def sha256(path: Path) -> str:
 
 
 def write(df: pd.DataFrame, path: Path, meta: dict, manifest: dict):
+    """Save a frame to raw_small/ as parquet and record its provenance and checksum in the manifest."""
     df = df[~df.index.duplicated()].sort_index()
     df.attrs.update({k: str(v) for k, v in meta.items()})
     path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(path, compression="zstd")
     manifest[path.name] = {
-        **meta, "rows": len(df), "columns": list(map(str, df.columns)),
+        **meta,
+        "rows": len(df),
+        "columns": list(map(str, df.columns)),
         "first": str(df.index.min()) if len(df) else None,
         "last": str(df.index.max()) if len(df) else None,
         "retrieved_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
-        "sha256": sha256(path), "bytes": path.stat().st_size,
+        "sha256": sha256(path),
+        "bytes": path.stat().st_size,
     }
-    print(f"  wrote {path.relative_to(ROOT)}: {len(df)} rows, {path.stat().st_size/1e6:.1f} MB")
+    print(f"  wrote {path.relative_to(ROOT)}: {len(df)} rows, {path.stat().st_size / 1e6:.1f} MB")
 
 
 def om_params(a, b, variables, **extra):
-    p = {"latitude": paths.LAT, "longitude": paths.LON, "start_date": a.isoformat(),
-         "end_date": b.isoformat(), "hourly": ",".join(variables), "timezone": "GMT",
-         "wind_speed_unit": "ms"}
+    p = {
+        "latitude": paths.LAT,
+        "longitude": paths.LON,
+        "start_date": a.isoformat(),
+        "end_date": b.isoformat(),
+        "hourly": ",".join(variables),
+        "timezone": "GMT",
+        "wind_speed_unit": "ms",
+    }
     p.update(extra)
     return p
 
 
 # ---------------------------------------------------------------- datasets
 def era5_open_meteo(start, end, manifest):
+    """ERA5 hourly weather for the site from the Open-Meteo archive, year by year."""
     grid = {}
 
     def fetch(a, b):
@@ -123,14 +144,23 @@ def era5_open_meteo(start, end, manifest):
         return rawio.om_hourly_to_frame(js["hourly"])
 
     df = pd.concat(cached("era5_om", a, b, fetch) for a, b in chunks(start, end, 12))
-    write(df, rawio.ERA5, {
-        "source": "ERA5 reanalysis (Hersbach et al. 2020) via Open-Meteo historical API, models=era5",
-        "url": ERA5_OM_URL, "radiation_convention": "mean of preceding hour",
-        "grid_latitude": grid.get("lat"), "grid_longitude": grid.get("lon"),
-        "note": "Reanalysis, not a measurement."}, manifest)
+    write(
+        df,
+        rawio.ERA5,
+        {
+            "source": "ERA5 reanalysis (Hersbach et al. 2020) via Open-Meteo historical API, models=era5",
+            "url": ERA5_OM_URL,
+            "radiation_convention": "mean of preceding hour",
+            "grid_latitude": grid.get("lat"),
+            "grid_longitude": grid.get("lon"),
+            "note": "Reanalysis, not a measurement.",
+        },
+        manifest,
+    )
 
 
 def era5_cds(start, end, manifest):
+    """ERA5 hourly weather from the Copernicus CDS (needs ~/.cdsapirc), month by month."""
     import cdsapi
     import xarray as xr
 
@@ -140,18 +170,21 @@ def era5_cds(start, end, manifest):
     def fetch(a, b):
         days = pd.date_range(a, b, freq="D")
         req = {
-            "product_type": ["reanalysis"], "variable": rawio.CDS_VARIABLES,
-            "year": [str(a.year)], "month": [f"{a.month:02d}"],
+            "product_type": ["reanalysis"],
+            "variable": rawio.CDS_VARIABLES,
+            "year": [str(a.year)],
+            "month": [f"{a.month:02d}"],
             "day": sorted({f"{d.day:02d}" for d in days}),
             "time": [f"{h:02d}:00" for h in range(24)],
             "area": [glat, glon, glat, glon],
-            "data_format": "netcdf", "download_format": "unarchived",
+            "data_format": "netcdf",
+            "download_format": "unarchived",
         }
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp) / "era5.download"
             client.retrieve("reanalysis-era5-single-levels", req, str(target))
             ncs = [target]
-            if zipfile.is_zipfile(target):   # mixed instant/accum variables arrive as a zip
+            if zipfile.is_zipfile(target):  # mixed instant/accum variables arrive as a zip
                 with zipfile.ZipFile(target) as z:
                     z.extractall(tmp)
                 ncs = sorted(Path(tmp).glob("*.nc"))
@@ -169,16 +202,24 @@ def era5_cds(start, end, manifest):
         return rawio.cds_to_schema(raw)
 
     df = pd.concat(cached("era5_cds", a, b, fetch) for a, b in chunks(start, end, 1))
-    write(df, rawio.ERA5, {
-        "source": "ERA5 reanalysis (Hersbach et al. 2020), Copernicus CDS reanalysis-era5-single-levels",
-        "url": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels",
-        "radiation_convention": "mean of preceding hour (ERA5 accumulation ending at timestamp)",
-        "grid_latitude": glat, "grid_longitude": glon,
-        "dni_method": "fdir / cos(zenith at mid-hour), 0 for zenith > 87.5 deg",
-        "note": "Reanalysis, not a measurement."}, manifest)
+    write(
+        df,
+        rawio.ERA5,
+        {
+            "source": "ERA5 reanalysis (Hersbach et al. 2020), Copernicus CDS reanalysis-era5-single-levels",
+            "url": "https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels",
+            "radiation_convention": "mean of preceding hour (ERA5 accumulation ending at timestamp)",
+            "grid_latitude": glat,
+            "grid_longitude": glon,
+            "dni_method": "fdir / cos(zenith at mid-hour), 0 for zenith > 87.5 deg",
+            "note": "Reanalysis, not a measurement.",
+        },
+        manifest,
+    )
 
 
 def satellite(start, end, manifest):
+    """Satellite radiation for the site from Open-Meteo."""
     grid = {}
 
     def fetch(a, b):
@@ -187,19 +228,35 @@ def satellite(start, end, manifest):
         return rawio.om_hourly_to_frame(js["hourly"])
 
     df = pd.concat(cached("satellite", a, b, fetch) for a, b in chunks(start, end, 12)).dropna(how="all")
-    write(df, rawio.SATELLITE, {
-        "source": "Open-Meteo satellite radiation API", "url": SAT_URL,
-        "radiation_convention": "mean of preceding hour",
-        "grid_latitude": grid.get("lat"), "grid_longitude": grid.get("lon"),
-        "note": "Satellite retrieval, not a measurement. Record the underlying satellite product [verify]."},
-        manifest)
+    write(
+        df,
+        rawio.SATELLITE,
+        {
+            "source": "Open-Meteo satellite radiation API",
+            "url": SAT_URL,
+            "radiation_convention": "mean of preceding hour",
+            "grid_latitude": grid.get("lat"),
+            "grid_longitude": grid.get("lon"),
+            "note": "Satellite retrieval, not a measurement. Record the underlying satellite product [verify].",
+        },
+        manifest,
+    )
 
 
 def power(start, end, manifest):
+    """NASA POWER hourly radiation and weather for the site."""
+
     def fetch(a, b):
-        p = {"parameters": ",".join(POWER_VARS), "community": "RE", "latitude": paths.LAT,
-             "longitude": paths.LON, "start": a.strftime("%Y%m%d"), "end": b.strftime("%Y%m%d"),
-             "format": "JSON", "time-standard": "UTC"}
+        p = {
+            "parameters": ",".join(POWER_VARS),
+            "community": "RE",
+            "latitude": paths.LAT,
+            "longitude": paths.LON,
+            "start": a.strftime("%Y%m%d"),
+            "end": b.strftime("%Y%m%d"),
+            "format": "JSON",
+            "time-standard": "UTC",
+        }
         js = get_json(POWER_URL, p, timeout=600)
         fill = js.get("header", {}).get("fill_value", -999.0)
         df = pd.DataFrame(js["properties"]["parameter"])
@@ -209,17 +266,24 @@ def power(start, end, manifest):
 
     df = pd.concat(cached("power", a, b, fetch) for a, b in chunks(start, end, 12))
     df = rawio.power_to_hour_ending(df)
-    write(df, rawio.NASA_POWER, {
-        "source": "NASA POWER hourly v2 (CERES SYN1deg radiation, MERRA-2 meteorology)", "url": POWER_URL,
-        "radiation_convention": "mean of preceding hour (relabelled +1 h from POWER hour-start stamps)",
-        "note": "Satellite/reanalysis product, not a measurement."}, manifest)
+    write(
+        df,
+        rawio.NASA_POWER,
+        {
+            "source": "NASA POWER hourly v2 (CERES SYN1deg radiation, MERRA-2 meteorology)",
+            "url": POWER_URL,
+            "radiation_convention": "mean of preceding hour (relabelled +1 h from POWER hour-start stamps)",
+            "note": "Satellite/reanalysis product, not a measurement.",
+        },
+        manifest,
+    )
 
 
 def nwp(start, end, manifest, models):
+    """Archived NWP forecasts (lead days 0-2) for each model from the Open-Meteo previous-runs API."""
     for key in models:
         name = rawio.NWP_MODELS[key]
-        variables = [f"{v}_previous_day{d}" if d else v
-                     for v in rawio.NWP_OM_VARS for d in rawio.LEAD_DAYS]
+        variables = [f"{v}_previous_day{d}" if d else v for v in rawio.NWP_OM_VARS for d in rawio.LEAD_DAYS]
         print(f" NWP {key} ({name})")
 
         def fetch(a, b, name=name, variables=variables):
@@ -235,31 +299,55 @@ def nwp(start, end, manifest, models):
         df = df.dropna(axis=1, how="all")
         first = df.dropna(how="all").index.min()
         df = df.loc[first:] if first is not pd.NaT else df
-        write(df, rawio.previous_runs_path(key), {
-            "source": f"Open-Meteo previous-runs API, model {name}", "url": PREV_URL,
-            "lead_days": "d0 = latest run, dN = run issued N days before (Open-Meteo *_previous_dayN)",
-            "radiation_convention": "mean of preceding hour",
-            "note": "NWP forecasts archived by Open-Meteo. Columns missing for a model were not served."},
-            manifest)
+        write(
+            df,
+            rawio.previous_runs_path(key),
+            {
+                "source": f"Open-Meteo previous-runs API, model {name}",
+                "url": PREV_URL,
+                "lead_days": "d0 = latest run, dN = run issued N days before (Open-Meteo *_previous_dayN)",
+                "radiation_convention": "mean of preceding hour",
+                "note": "NWP forecasts archived by Open-Meteo. Columns missing for a model were not served.",
+            },
+            manifest,
+        )
 
 
 def ibtracs(manifest):
+    """IBTrACS West Pacific tracks since 2014."""
     from aurora.data.typhoons import read_ibtracs
+
     raw = download(IBTRACS_URL, paths.RAW_DIR / "ibtracs.WP.list.v04r01.csv", force=True)
     df = read_ibtracs(raw, since=2014).set_index("time")
-    write(df, rawio.IBTRACS, {
-        "source": "IBTrACS v04r01 West Pacific (Knapp et al. 2010, doi:10.1175/2009BAMS2755.1)",
-        "url": IBTRACS_URL, "filter": "seasons >= 2014",
-        "intensity": "wind_kt/pres_hpa: RSMC Tokyo first, then WMO, then USA"}, manifest)
+    write(
+        df,
+        rawio.IBTRACS,
+        {
+            "source": "IBTrACS v04r01 West Pacific (Knapp et al. 2010, doi:10.1175/2009BAMS2755.1)",
+            "url": IBTRACS_URL,
+            "filter": "seasons >= 2014",
+            "intensity": "wind_kt/pres_hpa: RSMC Tokyo first, then WMO, then USA",
+        },
+        manifest,
+    )
 
 
 # ---------------------------------------------------------------- main
 def main(argv=None) -> int:
+    """Download the chosen inputs into data/itbayat/raw_small/ and update MANIFEST.json."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--only", nargs="+", choices=["era5", "satellite", "power", "nwp", "ibtracs"],
-                    default=["era5", "satellite", "power", "nwp", "ibtracs"])
-    ap.add_argument("--source", choices=["open-meteo", "cds"], default="open-meteo",
-                    help="where ERA5 comes from (default open-meteo)")
+    ap.add_argument(
+        "--only",
+        nargs="+",
+        choices=["era5", "satellite", "power", "nwp", "ibtracs"],
+        default=["era5", "satellite", "power", "nwp", "ibtracs"],
+    )
+    ap.add_argument(
+        "--source",
+        choices=["open-meteo", "cds"],
+        default="open-meteo",
+        help="where ERA5 comes from (default open-meteo)",
+    )
     ap.add_argument("--start", default=START.isoformat())
     ap.add_argument("--end", default=None, help="default: today - 8 days (ERA5 latency)")
     ap.add_argument("--nwp-start", default=NWP_START.isoformat())

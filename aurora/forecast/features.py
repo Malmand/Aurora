@@ -22,6 +22,7 @@ is ignored.
 Reference truth: Open-Meteo satellite radiation (a satellite retrieval). ERA5
 is used as a cross-check. Neither is a measurement.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -31,13 +32,13 @@ from aurora.data import paths, rawio
 
 from .geometry import K_MAX, clearsky_index, hourly_clearsky, season
 
-ISSUE_HOUR_UTC = 16   # 00:00 PHT
+ISSUE_HOUR_UTC = 16  # 00:00 PHT
 LEAD_DAYS = (1, 2)
-GHI_MODELS = ("ecmwf", "gfs", "icon")        # JMA is not served with radiation
+GHI_MODELS = ("ecmwf", "gfs", "icon")  # JMA is not served with radiation
 ALL_MODELS = ("ecmwf", "gfs", "icon", "jma")
 NWP_VARS = ("ghi_wm2", "cloud_pct", "temp_c", "rh_pct", "precip_mm", "mslp_hpa", "wind_ms", "gust_ms")
-QUANTILES = tuple(np.round(np.arange(0.05, 0.951, 0.05), 2))   # 19 levels, used for CRPS
-BAND = (0.1, 0.9)                                              # the 80 % band reported as P10/P90
+QUANTILES = tuple(np.round(np.arange(0.05, 0.951, 0.05), 2))  # 19 levels, used for CRPS
+BAND = (0.1, 0.9)  # the 80 % band reported as P10/P90
 
 
 def lead_day_of(lead_h):
@@ -74,12 +75,13 @@ def load_truth() -> pd.DataFrame:
 
 def mslp_climatology(base: pd.DataFrame, end="2022-01-01") -> pd.Series:
     """ERA5 mean sea-level pressure by month and UTC hour, 2015-2021 (before any test data)."""
-    s = base.loc[:pd.Timestamp(end, tz="UTC") - pd.Timedelta(hours=1), "mslp_era5"].dropna()
+    s = base.loc[: pd.Timestamp(end, tz="UTC") - pd.Timedelta(hours=1), "mslp_era5"].dropna()
     return s.groupby([s.index.month, s.index.hour]).mean()
 
 
-def lead_features(base: pd.DataFrame, nwp: dict[str, pd.DataFrame], ld: int,
-                  mslp_clim: pd.Series | None = None) -> pd.DataFrame:
+def lead_features(
+    base: pd.DataFrame, nwp: dict[str, pd.DataFrame], ld: int, mslp_clim: pd.Series | None = None
+) -> pd.DataFrame:
     """Feature table for lead day ``ld``, one row per target hour (UTC, hour-ending)."""
     idx = base.index
     X = pd.DataFrame(index=idx)
@@ -168,10 +170,19 @@ def target_frame(base: pd.DataFrame, X: pd.DataFrame, ld: int) -> pd.DataFrame:
     idx = X.index
     issue = issue_times(idx, ld)
     lead_h = ((idx - issue) / pd.Timedelta(hours=1)).astype(int)
-    T = pd.DataFrame({"issue_time": issue, "lead_h": lead_h, "lead_day": ld,
-                      "k_true": base["k_sat"], "ghi_true": base["ghi_sat"],
-                      "ghi_clear": base["ghi_clear"], "daylight": base["daylight"],
-                      "season": base["season"]}, index=idx)
+    T = pd.DataFrame(
+        {
+            "issue_time": issue,
+            "lead_h": lead_h,
+            "lead_day": ld,
+            "k_true": base["k_sat"],
+            "ghi_true": base["ghi_sat"],
+            "ghi_clear": base["ghi_clear"],
+            "daylight": base["daylight"],
+            "season": base["season"],
+        },
+        index=idx,
+    )
     if "ghi_era5" in base:
         T["ghi_era5"] = base["ghi_era5"]
     # raw NWP GHI (each model and the mean) for the baselines

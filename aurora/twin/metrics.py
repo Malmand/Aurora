@@ -1,4 +1,5 @@
 """Per-run KPIs (brief, Phase 4 list)."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -6,6 +7,7 @@ import pandas as pd
 
 
 def kpis(run: pd.DataFrame, p) -> dict:
+    """Run KPIs: fuel, CO2, cost, renewable share, shedding, critical outage, battery use, Survival Clock."""
     fuel = run["fuel_l"].sum()
     served = (run["crit"] - run["unserved_crit"] + run["flex"] - run["shed"]).sum()
     has_bat = run["discharge"].abs().sum() > 0 or run["charge"].abs().sum() > 0
@@ -36,7 +38,8 @@ def kpis(run: pd.DataFrame, p) -> dict:
         fallback_steps=int(run["fallback"].sum()),
         horizon_mean_h=round(float(run["horizon_h"].mean()), 1) if "horizon_h" in run else np.nan,
         plans_with_fallback_pct=round(100 * float((run["plan_fallback_h"] > 0).mean()), 1)
-        if "plan_fallback_h" in run else np.nan,
+        if "plan_fallback_h" in run
+        else np.nan,
         plan_fallback_h_mean=round(float(run["plan_fallback_h"].mean()), 1) if "plan_fallback_h" in run else np.nan,
         max_balance_resid_kw=float(run["balance_resid"].abs().max()),
     )

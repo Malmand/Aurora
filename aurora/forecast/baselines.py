@@ -12,6 +12,7 @@
   fitted per lead day on past data; bands from the past residual quantiles of
   that forecast by lead day and season, widened by ``WIDEN`` about the median.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -22,7 +23,7 @@ from aurora.data import paths
 from .features import QUANTILES
 from .geometry import K_MAX
 
-WIDEN = 1.25   # ASSUMPTION: extra width on fallback bands
+WIDEN = 1.25  # ASSUMPTION: extra width on fallback bands
 
 
 def _keys(index: pd.DatetimeIndex):
@@ -48,8 +49,9 @@ def climatology(tab: pd.DataFrame, index: pd.DatetimeIndex) -> pd.DataFrame:
     return out
 
 
-def fit_fallback(k_persist: pd.Series, k_clim: pd.Series, k_true: pd.Series,
-                 lead_day: pd.Series, season: pd.Series) -> dict:
+def fit_fallback(
+    k_persist: pd.Series, k_clim: pd.Series, k_true: pd.Series, lead_day: pd.Series, season: pd.Series
+) -> dict:
     """Least-squares weight per lead day and residual quantiles per (lead day, season)."""
     df = pd.DataFrame({"p": k_persist, "c": k_clim, "y": k_true, "ld": lead_day, "s": season}).dropna()
     par = {"w": {}, "res": {}}

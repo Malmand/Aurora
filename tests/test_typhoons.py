@@ -1,4 +1,5 @@
 """Artificial track fixture: a storm moving due north through the site's longitude."""
+
 import numpy as np
 import pandas as pd
 
@@ -13,8 +14,9 @@ def test_haversine_one_degree_latitude():
 def _track():
     t = pd.date_range("2023-05-29", periods=17, freq="3h", tz="UTC")
     lat = np.linspace(paths.LAT - 6, paths.LAT + 6, len(t))
-    return pd.DataFrame({"SID": "X", "NAME": "TEST", "time": t, "LAT": lat,
-                         "LON": paths.LON, "wind_kt": 80.0, "pres_hpa": 950.0})
+    return pd.DataFrame(
+        {"SID": "X", "NAME": "TEST", "time": t, "LAT": lat, "LON": paths.LON, "wind_kt": 80.0, "pres_hpa": 950.0}
+    )
 
 
 def test_flags_and_events():

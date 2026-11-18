@@ -6,8 +6,9 @@ from aurora.data.validate import hourly_stats, monthly_ghi, pct, verdict
 
 
 def test_monthly_ghi_constant_series():
-    idx = pd.date_range(pd.Timestamp("2020-01-01", tz=paths.LOCAL_TZ),
-                        pd.Timestamp("2021-12-31 23:00", tz=paths.LOCAL_TZ), freq="h").tz_convert("UTC")
+    idx = pd.date_range(
+        pd.Timestamp("2020-01-01", tz=paths.LOCAL_TZ), pd.Timestamp("2021-12-31 23:00", tz=paths.LOCAL_TZ), freq="h"
+    ).tz_convert("UTC")
     ghi = pd.Series(250.0, index=idx)  # 6 kWh/m2/day
     m = monthly_ghi(ghi)
     assert np.allclose(m["mean"], 6.0) and (m["n_years"] == 2).all()

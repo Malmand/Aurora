@@ -27,6 +27,7 @@ runs differ only in the forecast, not in the horizon.
 The CSV loader is ported from digital_twin/forecast_io.py (team repo, Mohamed):
 time column names, time zones, _p10/_p90 or _low/_high band names.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -41,8 +42,8 @@ TIME_COLS = ["timestamp", "time", "datetime", "date"]
 BAND_ALIASES = {"p10": ["_p10", "_q10", "_low"], "p50": ["_p50", "_q50", ""], "p90": ["_p90", "_q90", "_high"]}
 
 
-ISSUE_HOUR_UTC = 16     # Phase 2 issue time, 00:00 PHT
-ISSUE_LEN_H = 48        # Phase 2 issue length
+ISSUE_HOUR_UTC = 16  # Phase 2 issue time, 00:00 PHT
+ISSUE_LEN_H = 48  # Phase 2 issue length
 STEP = pd.Timedelta(hours=1)
 
 
@@ -64,6 +65,8 @@ def monotone(fc: pd.DataFrame) -> pd.DataFrame:
 
 
 class PerfectForecast:
+    """Forecast equal to the truth, with zero-width bands (upper bound on the value of forecasting)."""
+
     name = "perfect"
     issue_end = staticmethod(daily_issue_end)
 
@@ -72,7 +75,7 @@ class PerfectForecast:
 
     def __call__(self, t, horizon: int) -> pd.DataFrame:
         i = self.t.index.get_loc(t)
-        w = self.t.iloc[i:i + horizon]
+        w = self.t.iloc[i : i + horizon]
         out = pd.DataFrame(index=w.index)
         for q in Q:
             out[f"solar_kW_{q}"] = w["pv_kw_per_kwp"].to_numpy() * self.kwp
@@ -90,6 +93,7 @@ class PersistenceForecast:
     30 days, widened by `widen` (used for the comms-down fallback). Demand: the
     same hour on the last observed day; critical +-2 %, flexible +-10 %.
     """
+
     name = "persistence"
     issue_end = staticmethod(daily_issue_end)
 
@@ -125,12 +129,20 @@ class PersistenceForecast:
         src = (i - 24 + np.arange(horizon) % 24) if i >= 24 else (np.arange(horizon) % 24)
         d = self.load[src]
         wc, wf = 0.02 * self.widen, 0.10 * self.widen
-        out = pd.DataFrame({
-            "solar_kW_p10": cs * k10, "solar_kW_p50": cs * k, "solar_kW_p90": cs * k90,
-            "demand_critical_kW_p10": d[:, 0] * (1 - wc), "demand_critical_kW_p50": d[:, 0],
-            "demand_critical_kW_p90": d[:, 0] * (1 + wc),
-            "demand_flex_kW_p10": d[:, 1] * (1 - wf), "demand_flex_kW_p50": d[:, 1],
-            "demand_flex_kW_p90": d[:, 1] * (1 + wf)}, index=idx)
+        out = pd.DataFrame(
+            {
+                "solar_kW_p10": cs * k10,
+                "solar_kW_p50": cs * k,
+                "solar_kW_p90": cs * k90,
+                "demand_critical_kW_p10": d[:, 0] * (1 - wc),
+                "demand_critical_kW_p50": d[:, 0],
+                "demand_critical_kW_p90": d[:, 0] * (1 + wc),
+                "demand_flex_kW_p10": d[:, 1] * (1 - wf),
+                "demand_flex_kW_p50": d[:, 1],
+                "demand_flex_kW_p90": d[:, 1] * (1 + wf),
+            },
+            index=idx,
+        )
         out["fallback"] = self.fb
         return monotone(out)
 
@@ -182,6 +194,7 @@ class CSVForecast:
     t..t+H-1, the missing tail (or the whole window) comes from the persistence
     fallback with bands widened 1.5x and fallback=True.
     """
+
     name = "csv"
 
     def __init__(self, folder, truth: pd.DataFrame, pv_kwp: float, scale_kwp: float | None = None):

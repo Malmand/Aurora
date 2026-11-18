@@ -5,6 +5,7 @@ u = 0 and u = 1 with the slope of the nearest segment, clipped to [lo, hi].
 Hours are tied together with a Gaussian copula with AR(1) correlation `rho`
 (one draw per scenario and hour), so a cloudy morning tends to stay cloudy.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -31,7 +32,7 @@ def correlated_uniforms(n_scen: int, horizon: int, rho: float, rng) -> np.ndarra
     z = np.empty((n_scen, horizon))
     z[:, 0] = rng.standard_normal(n_scen)
     e = rng.standard_normal((n_scen, horizon))
-    a = np.sqrt(1 - rho ** 2)
+    a = np.sqrt(1 - rho**2)
     for h in range(1, horizon):
         z[:, h] = rho * z[:, h - 1] + a * e[:, h]
     return norm.cdf(z)
@@ -43,8 +44,9 @@ def draw(fc, n_scen: int, rng, pv_cap: float, rho_solar=0.9, rho_load=0.95):
     us = correlated_uniforms(n_scen, H, rho_solar, rng)
     ul = correlated_uniforms(n_scen, H, rho_load, rng)
     sol = inverse_cdf(us, fc["solar_kW_p10"], fc["solar_kW_p50"], fc["solar_kW_p90"], 0.0, pv_cap)
-    crit = inverse_cdf(ul, fc["demand_critical_kW_p10"], fc["demand_critical_kW_p50"],
-                       fc["demand_critical_kW_p90"], 0.0)
+    crit = inverse_cdf(
+        ul, fc["demand_critical_kW_p10"], fc["demand_critical_kW_p50"], fc["demand_critical_kW_p90"], 0.0
+    )
     return sol, crit
 
 

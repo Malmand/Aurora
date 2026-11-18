@@ -16,6 +16,7 @@ Critical load = sum of fixed-rating components with day/night factors.
 Flexible = total - critical.
 All shape parameters are ASSUMPTIONs (site.yaml: load_model).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -48,7 +49,7 @@ def _gamma_for_lf(r: np.ndarray, lf: float) -> float:
     lo, hi = 0.05, 8.0
     for _ in range(60):
         mid = 0.5 * (lo + hi)
-        if np.mean(r ** mid) > lf:
+        if np.mean(r**mid) > lf:
             lo = mid
         else:
             hi = mid
@@ -66,7 +67,7 @@ def _calibrate_npc(rel: np.ndarray, local: pd.DatetimeIndex, npc: dict):
     partial = []
     for y, pk, e in zip(yrs, peak, gen):
         sel = year == y
-        if sel.sum() < 24 * 360:          # partial year: scale the nearest full year by energy below
+        if sel.sum() < 24 * 360:  # partial year: scale the nearest full year by energy below
             if sel.any():
                 partial.append((y, e))
             continue
@@ -80,21 +81,28 @@ def _calibrate_npc(rel: np.ndarray, local: pd.DatetimeIndex, npc: dict):
         e_fit.append(e)
     if not mid:
         raise ValueError("no NPC calibration year covered by the index")
-    for y, e in partial:                  # same gamma, k scaled by NPC's energy ratio
+    for y, e in partial:  # same gamma, k scaled by NPC's energy ratio
         j = int(np.argmin(np.abs(np.asarray(mid) - (y + 0.5))))
-        k_y.append(k_y[j] * e / e_fit[j]); g_y.append(g_y[j]); mid.append(y + 0.5); e_fit.append(e)
+        k_y.append(k_y[j] * e / e_fit[j])
+        g_y.append(g_y[j])
+        mid.append(y + 0.5)
+        e_fit.append(e)
     o = np.argsort(mid)
     mid, k_y, g_y = (list(np.asarray(v)[o]) for v in (mid, k_y, g_y))
     t = local.year + (local.dayofyear.to_numpy() - 0.5) / 365.25
     gam = np.interp(t, mid, g_y)
     logk = np.interp(t, mid, np.log(k_y))
-    total = np.exp(logk) * rel ** gam
+    total = np.exp(logk) * rel**gam
     info = {f"gamma_{int(m - 0.5)}": f"{g:.3f}" for m, g in zip(mid, g_y)}
     return total, info
 
 
-def synthetic_load(index_utc: pd.DatetimeIndex, temp_c: pd.Series | None, site: dict | None = None
-                   ) -> pd.DataFrame:
+def synthetic_load(index_utc: pd.DatetimeIndex, temp_c: pd.Series | None, site: dict | None = None) -> pd.DataFrame:
+    """SYNTHETIC hourly load (total, critical, flexible kW) from the site load model.
+
+    Hourly shape x season x temperature x Sunday factor x noise, then mapped to NPC's yearly peak and
+    energy (calibration in site.yaml). Critical loads follow their own schedules. Every factor is an ASSUMPTION.
+    """
     site = site or load_site()
     m = site["load_model"]
     local = index_utc.tz_convert(paths.LOCAL_TZ)
@@ -151,10 +159,12 @@ def synthetic_load(index_utc: pd.DatetimeIndex, temp_c: pd.Series | None, site: 
     if (df["flex_kW"] < 0).any():
         raise ValueError("critical load exceeds total in some hours; check ratings")
     df.index.name = "time"
-    df.attrs.update(synthetic="True",
-                    description="SYNTHETIC hourly load for Itbayat. Not measured.",
-                    **meta,
-                    temperature_input="ERA5 temp_c" if temp_c is not None else "none")
+    df.attrs.update(
+        synthetic="True",
+        description="SYNTHETIC hourly load for Itbayat. Not measured.",
+        **meta,
+        temperature_input="ERA5 temp_c" if temp_c is not None else "none",
+    )
     return df
 
 

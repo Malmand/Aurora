@@ -1,4 +1,5 @@
 """Tests use an artificial temperature series (test fixture, not site data)."""
+
 import numpy as np
 import pandas as pd
 
@@ -8,8 +9,11 @@ from aurora.data.site import load_site
 
 
 def _index():
-    return pd.date_range(pd.Timestamp("2021-01-01", tz=paths.LOCAL_TZ).tz_convert("UTC"),
-                         pd.Timestamp("2025-12-31 23:00", tz=paths.LOCAL_TZ).tz_convert("UTC"), freq="h")
+    return pd.date_range(
+        pd.Timestamp("2021-01-01", tz=paths.LOCAL_TZ).tz_convert("UTC"),
+        pd.Timestamp("2025-12-31 23:00", tz=paths.LOCAL_TZ).tz_convert("UTC"),
+        freq="h",
+    )
 
 
 def _temp(idx):
@@ -23,7 +27,7 @@ def test_peak_scaled_and_balance():
     df = synthetic_load(idx, _temp(idx), site)
     loc = df.index.tz_convert(paths.LOCAL_TZ)
     npc = site["npc_itbayat_dpp"]
-    for y in (2022, 2023, 2024):      # NPC calibration: annual energy and peak within a few %
+    for y in (2022, 2023, 2024):  # NPC calibration: annual energy and peak within a few %
         i = npc["years"].index(y)
         d = df.loc[loc.year == y, "total_kW"]
         assert abs(d.sum() / 1000 / npc["gross_gen_mwh"][i] - 1) < 0.04

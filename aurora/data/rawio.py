@@ -17,6 +17,7 @@ Previous-runs NWP files use the same names with a lead-day suffix:
 hour from the run issued N days earlier (Open-Meteo ``*_previous_dayN``),
 so d1 covers lead times of about 24-47 h and d2 about 48-71 h.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -30,7 +31,7 @@ ERA5 = RAW_SMALL / "era5_hourly.parquet"
 SATELLITE = RAW_SMALL / "satellite_radiation_hourly.parquet"
 NASA_POWER = RAW_SMALL / "nasa_power_hourly.parquet"
 IBTRACS = RAW_SMALL / "ibtracs_wp_tracks.parquet"
-NWP_MODELS = {            # our key -> Open-Meteo model name
+NWP_MODELS = {  # our key -> Open-Meteo model name
     "ecmwf": "ecmwf_ifs025",
     "gfs": "gfs_seamless",
     "icon": "icon_seamless",
@@ -66,16 +67,40 @@ OM_RENAME = {
     "wind_direction_10m": "wind_dir_deg",
     "wind_gusts_10m": "gust_ms",
 }
-ERA5_OM_VARS = ["shortwave_radiation", "direct_normal_irradiance", "diffuse_radiation",
-                "temperature_2m", "relative_humidity_2m", "dew_point_2m", "precipitation",
-                "pressure_msl", "surface_pressure", "cloud_cover", "cloud_cover_low",
-                "cloud_cover_mid", "cloud_cover_high", "wind_speed_10m", "wind_direction_10m",
-                "wind_gusts_10m"]
+ERA5_OM_VARS = [
+    "shortwave_radiation",
+    "direct_normal_irradiance",
+    "diffuse_radiation",
+    "temperature_2m",
+    "relative_humidity_2m",
+    "dew_point_2m",
+    "precipitation",
+    "pressure_msl",
+    "surface_pressure",
+    "cloud_cover",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+]
 SAT_OM_VARS = ["shortwave_radiation", "direct_normal_irradiance", "diffuse_radiation"]
-NWP_OM_VARS = ["shortwave_radiation", "direct_normal_irradiance", "diffuse_radiation",
-               "cloud_cover", "cloud_cover_low", "cloud_cover_mid", "cloud_cover_high",
-               "temperature_2m", "relative_humidity_2m", "precipitation", "pressure_msl",
-               "wind_speed_10m", "wind_gusts_10m"]
+NWP_OM_VARS = [
+    "shortwave_radiation",
+    "direct_normal_irradiance",
+    "diffuse_radiation",
+    "cloud_cover",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "temperature_2m",
+    "relative_humidity_2m",
+    "precipitation",
+    "pressure_msl",
+    "wind_speed_10m",
+    "wind_gusts_10m",
+]
 
 
 def read(path) -> pd.DataFrame | None:
@@ -120,11 +145,20 @@ def power_to_hour_ending(df: pd.DataFrame) -> pd.DataFrame:
 
 # ERA5 from the Copernicus CDS (netCDF short names) -> schema
 CDS_VARIABLES = [
-    "surface_solar_radiation_downwards", "total_sky_direct_solar_radiation_at_surface",
-    "2m_temperature", "2m_dewpoint_temperature", "total_precipitation",
-    "mean_sea_level_pressure", "surface_pressure", "total_cloud_cover", "low_cloud_cover",
-    "medium_cloud_cover", "high_cloud_cover", "10m_u_component_of_wind",
-    "10m_v_component_of_wind", "10m_wind_gust_since_previous_post_processing",
+    "surface_solar_radiation_downwards",
+    "total_sky_direct_solar_radiation_at_surface",
+    "2m_temperature",
+    "2m_dewpoint_temperature",
+    "total_precipitation",
+    "mean_sea_level_pressure",
+    "surface_pressure",
+    "total_cloud_cover",
+    "low_cloud_cover",
+    "medium_cloud_cover",
+    "high_cloud_cover",
+    "10m_u_component_of_wind",
+    "10m_v_component_of_wind",
+    "10m_wind_gust_since_previous_post_processing",
 ]
 
 
@@ -167,8 +201,12 @@ def cds_to_schema(raw: pd.DataFrame, lat=paths.LAT, lon=paths.LON) -> pd.DataFra
     out["rh_pct"] = magnus_rh(t, td).clip(upper=100)
     out["precip_mm"] = (pick("tp") * 1000).clip(lower=0)
     out["mslp_hpa"], out["sp_hpa"] = pick("msl") / 100, pick("sp") / 100
-    for src, dst in (("tcc", "cloud_pct"), ("lcc", "cloud_low_pct"),
-                     ("mcc", "cloud_mid_pct"), ("hcc", "cloud_high_pct")):
+    for src, dst in (
+        ("tcc", "cloud_pct"),
+        ("lcc", "cloud_low_pct"),
+        ("mcc", "cloud_mid_pct"),
+        ("hcc", "cloud_high_pct"),
+    ):
         out[dst] = pick(src) * 100
     u, v = pick("u10"), pick("v10")
     out["wind_ms"] = np.hypot(u, v)

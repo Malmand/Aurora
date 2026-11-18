@@ -17,6 +17,7 @@ Conformal pool: out-of-sample scores of earlier folds, same regime and lead
 day, from the 365 days before the cutoff. Rows without a big enough pool keep
 their raw quantiles and get ``calibrated = False``.
 """
+
 from __future__ import annotations
 
 import time
@@ -26,13 +27,12 @@ import pandas as pd
 
 
 from . import baselines, quantile as Qm
-from .features import (LEAD_DAYS, lead_features, load_nwp, load_truth,
-                       mslp_climatology, target_frame)
+from .features import LEAD_DAYS, lead_features, load_nwp, load_truth, mslp_climatology, target_frame
 from .geometry import K_MAX
 
 FIRST_TEST = pd.Timestamp("2023-01-01", tz="UTC")
 NWP_START = pd.Timestamp("2022-01-01", tz="UTC")
-EVAL_START = pd.Timestamp("2024-11-01", tz="UTC")   # first month with >= 9 months of full-regime training
+EVAL_START = pd.Timestamp("2024-11-01", tz="UTC")  # first month with >= 9 months of full-regime training
 CUTOFF_GAP = pd.Timedelta(days=3)
 POOL_DAYS = 365
 MIN_FULL_TRAIN = 2000
@@ -73,14 +73,17 @@ def _train_mask(T, cutoff, start=None):
 def _calibrate_rows(Q, T_rows, pool: pd.DataFrame, regime: str, ld: int, cutoff):
     if pool.empty:
         return Q, np.zeros(len(Q), bool)
-    p = pool[(pool["regime"].str.startswith(regime.split("_")[0])) & (pool["lead_day"] == ld)
-             & (pool.index < cutoff) & (pool.index >= cutoff - pd.Timedelta(days=POOL_DAYS))]
+    p = pool[
+        (pool["regime"].str.startswith(regime.split("_")[0]))
+        & (pool["lead_day"] == ld)
+        & (pool.index < cutoff)
+        & (pool.index >= cutoff - pd.Timedelta(days=POOL_DAYS))
+    ]
     if len(p) < Qm.MIN_GROUP:
         return Q, np.zeros(len(Q), bool)
     scores = p["k_true"].to_numpy()[:, None] - p[[f"raw_{c}" for c in QC]].to_numpy()
     groups = pd.DataFrame({"lead_day": ld, "season": T_rows["season"].to_numpy()})
-    return Qm.calibrate(Q, groups, scores, p[["lead_day", "season"]].reset_index(drop=True),
-                        lo=0.0, hi=K_MAX)
+    return Qm.calibrate(Q, groups, scores, p[["lead_day", "season"]].reset_index(drop=True), lo=0.0, hi=K_MAX)
 
 
 def _predict_block(models, X, T, rows, cols, regime, ld, pool, cutoff):
@@ -94,7 +97,7 @@ def _predict_block(models, X, T, rows, cols, regime, ld, pool, cutoff):
     return out
 
 
-def _baselines(base: pd.DataFrame, T: pd.DataFrame, X: pd.DataFrame, rows, cutoff) -> pd.DataFrame:
+def _baselines(base: pd.DataFrame, X: pd.DataFrame, rows, cutoff) -> pd.DataFrame:
     hist = base.loc[: cutoff - pd.Timedelta(hours=1)]
     tab = baselines.climatology_table(hist["k_sat"][hist["daylight"]])
     cl = baselines.climatology(tab, rows)
@@ -119,6 +122,7 @@ def _fit_fallback(base, tab, cutoff):
 
 
 def run(verbose=True) -> pd.DataFrame:
+    """Rolling-origin solar backtest: refit monthly on earlier data, predict the month, calibrate, return all rows."""
     t0 = time.time()
     base, nwp, tabs = build_tables()
     last = min(T.index.max() for _, T in tabs.values())
@@ -134,21 +138,29 @@ def run(verbose=True) -> pd.DataFrame:
         if len(rows_full):
             blocks.append(_predict_block(models_full, X, T, rows_full, full_feature_cols(X), "full", ld, pool, cutoff))
         if len(rows_red) and models_red:
-            blocks.append(_predict_block(models_red, X, T, rows_red, reduced_feature_cols(X), regime_red, ld,
-                                         pool, cutoff))
+            blocks.append(
+                _predict_block(models_red, X, T, rows_red, reduced_feature_cols(X), regime_red, ld, pool, cutoff)
+            )
         if not blocks:
             return None
         P = pd.concat(blocks).sort_index()
-        bcut = min(cutoff, P.index.min() - CUTOFF_GAP)   # climatology never sees the test period
-        bl, tab = _baselines(base, T, X, P.index, bcut)
+        bcut = min(cutoff, P.index.min() - CUTOFF_GAP)  # climatology never sees the test period
+        bl, tab = _baselines(base, X, P.index, bcut)
         par = _fit_fallback(base, tab, bcut)
-        fb = baselines.predict_fallback(par, bl["k_persist"], bl["k_clim"], np.full(len(P), ld),
-                                        T.loc[P.index, "season"])
+        fb = baselines.predict_fallback(
+            par, bl["k_persist"], bl["k_clim"], np.full(len(P), ld), T.loc[P.index, "season"]
+        )
         P = P.join(bl)
         P[[f"fb_{c}" for c in QC]] = fb
         P = T.loc[P.index].join(P)
-        pool = pd.concat([pool, P[P["daylight"] & P["k_true"].notna()]
-                          [["regime", "lead_day", "season", "k_true"] + [f"raw_{c}" for c in QC]]])
+        pool = pd.concat(
+            [
+                pool,
+                P[P["daylight"] & P["k_true"].notna()][
+                    ["regime", "lead_day", "season", "k_true"] + [f"raw_{c}" for c in QC]
+                ],
+            ]
+        )
         return P
 
     for M in months:
@@ -180,8 +192,12 @@ def run(verbose=True) -> pd.DataFrame:
     end22 = pd.Timestamp("2023-01-01", tz="UTC")
     for ld in LEAD_DAYS:
         X, T = tabs[ld]
-        tr = T["daylight"] & T["k_true"].notna() & (T.index >= end22 + CUTOFF_GAP) & \
-            (T.index < pd.Timestamp("2024-01-01", tz="UTC"))
+        tr = (
+            T["daylight"]
+            & T["k_true"].notna()
+            & (T.index >= end22 + CUTOFF_GAP)
+            & (T.index < pd.Timestamp("2024-01-01", tz="UTC"))
+        )
         mr = Qm.fit(X.loc[tr, reduced_feature_cols(X)], T.loc[tr, "k_true"])
         rows = T.index[(T.index < end22) & (T["ghi_clear"] > 0)]
         P = emit(ld, X, T, rows, pd.Timestamp("2024-01-01", tz="UTC"), None, mr, "reduced_reverse")

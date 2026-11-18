@@ -20,5 +20,6 @@ def test_missing_values_are_refused():
 def test_inl_current_state_is_used():
     site = load_site()
     assert value(site, "diesel_available_kw") == value(site, "diesel_combined_kw_inl") - value(
-        site, "diesel_out_of_service_kw_inl")
+        site, "diesel_out_of_service_kw_inl"
+    )
     assert value(site, "diesel_price_php_per_l") == 113

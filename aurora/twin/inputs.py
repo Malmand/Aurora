@@ -9,6 +9,7 @@ satellite retrieval can be used instead for radiation. Neither is a measurement.
 Load is the Phase 1 SYNTHETIC series unless data/itbayat/load_hourly.parquet
 (real plant logs) exists.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -31,7 +32,7 @@ def crit_variability(index: pd.DatetimeIndex, sigma: float, rho: float, seed: in
     load, _ = load_frame()
     full = load.index
     rng = np.random.default_rng(seed)
-    e = rng.normal(0.0, sigma * np.sqrt(1 - rho ** 2), len(full))
+    e = rng.normal(0.0, sigma * np.sqrt(1 - rho**2), len(full))
     ar = np.empty(len(full))
     acc = 0.0
     for i, x in enumerate(e):
@@ -65,9 +66,8 @@ def build(start=None, end=None, radiation: str = "era5", crit_noise: bool = Fals
     pv = pvmodel.pv_ac_per_kwp(rad, era5["temp_c"], era5["wind_ms"])
     cs = pvmodel.clearsky(rad.index)
     pvc = pvmodel.pv_ac_per_kwp(cs, era5["temp_c"], None)
-    shift = pd.Timedelta(hours=1)            # hour-ending -> step start
-    df = pd.DataFrame({"pv_kw_per_kwp": pv.values, "pv_clear_kw_per_kwp": pvc.values},
-                      index=rad.index - shift)
+    shift = pd.Timedelta(hours=1)  # hour-ending -> step start
+    df = pd.DataFrame({"pv_kw_per_kwp": pv.values, "pv_clear_kw_per_kwp": pvc.values}, index=rad.index - shift)
     load, synthetic = load_frame()
     df = df.join(load[["critical_kW", "flex_kW"]].rename(columns={"critical_kW": "crit_kW"}), how="inner")
     df["temp_c"] = era5["temp_c"].reindex(df.index).interpolate().to_numpy()
@@ -76,6 +76,7 @@ def build(start=None, end=None, radiation: str = "era5", crit_noise: bool = Fals
         df["tc_within_500km"] = tf["tc_within_500km"].reindex(df.index).fillna(False).astype(bool).to_numpy()
     if crit_noise:
         from ..data.site import load_site, value
+
         s = load_site()
         f = crit_variability(df.index, float(value(s, "crit_noise_sigma")), float(value(s, "crit_noise_rho")))
         total = df["crit_kW"] + df["flex_kW"]
@@ -86,7 +87,10 @@ def build(start=None, end=None, radiation: str = "era5", crit_noise: bool = Fals
     if end is not None:
         df = df[df.index < hi]
     df.index.name = "timestamp"
-    df.attrs.update(radiation=radiation, load_synthetic=str(synthetic), crit_noise=str(crit_noise),
-                    note="Truth = reanalysis/retrieval PV and %s load; not measured."
-                         % ("SYNTHETIC" if synthetic else "logged"))
+    df.attrs.update(
+        radiation=radiation,
+        load_synthetic=str(synthetic),
+        crit_noise=str(crit_noise),
+        note="Truth = reanalysis/retrieval PV and %s load; not measured." % ("SYNTHETIC" if synthetic else "logged"),
+    )
     return df

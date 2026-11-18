@@ -8,6 +8,7 @@ Issue times are 16:00 UTC (00:00 PHT). ``--live`` needs network access and the
 models from ``python -m aurora.forecast.build``; if the NWP request fails the
 output is the fallback forecast with ``fallback = True``.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -20,6 +21,7 @@ from .build import LEAN_DEMAND, LEAN_SOLAR
 
 
 def main(argv=None) -> int:
+    """Issue one 48 h forecast CSV (archived, live, or the no-NWP fallback)."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--issue", help="issue time, e.g. 2025-07-20T16:00Z")
     ap.add_argument("--live", action="store_true")
