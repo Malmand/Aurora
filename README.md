@@ -14,7 +14,7 @@ This is Mohamed Al-Mandhari's individual development repository for the AURORA p
 | 2 | Probabilistic solar and demand forecast (P10/P50/P90, 48 h) | Done: beats every raw NWP model and smart persistence on RMSE and CRPS over a 24-month backtest; see [`docs/validation_forecast.md`](docs/validation_forecast.md) |
 | 3 | Digital twin with MILP rolling-horizon MPC and CEST | Done: `aurora/twin/`, controllers A/B/C, fuel tank, Monte Carlo risk, demo on typhoon Mawar 2023 ([`docs/twin.md`](docs/twin.md)) |
 | 4 | Year runs, real typhoon weeks, value of forecasting, sizing, sensitivity, costs | Done: [`docs/results_phase4.md`](docs/results_phase4.md), tables in `results/phase4/` |
-| 5 | Figures, results summary, slide and video content | Planned |
+| 5 | Figures, results summary, slide and video content | Done: `figures/final/`, [`docs/results_summary.md`](docs/results_summary.md), [`docs/slide_content.md`](docs/slide_content.md), [`docs/video_script.md`](docs/video_script.md) |
 | 6 | Operator screen (optional) | Planned |
 
 Details: [`docs/CLOUD_BRIEF.md`](docs/CLOUD_BRIEF.md).
@@ -36,6 +36,7 @@ python -m aurora.twin.run --controllers C --sizing case --start 2025-07-15 --day
 python -m aurora.experiments.phase4 run --stage A --workers 4   # Phase 4 runs (about 10 CPU-h; resumable)
 python -m aurora.experiments.phase4 run --stage B --workers 4   # recommended size: sensitivity, full years, all storms
 python -m aurora.experiments.phase4 tables                      # Phase 4 tables from the committed runs -> results/phase4/
+python -m aurora.plotting.phase5                                # deck figures -> figures/final/ (no simulation)
 pytest
 ```
 
