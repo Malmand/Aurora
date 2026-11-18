@@ -335,3 +335,138 @@ def growth_v2():
     ax.legend(frameon=False, loc="upper right", fontsize=20)
     _save(fig, "growth_v2")
     print(g.round(1))
+
+
+# ---- impact series (slides 8 to 12) -------------------------------------------------------------
+KEYS4 = ["A", "B", "O", "C"]
+NAME4 = {"A": "Diesel only (today)", "B": "Solar + battery, no plan", "O": "Careful operator", "C": "AURORA"}
+STY4 = {"A": ("-", "o"), "B": (":", "^"), "O": ("--", "s"), "C": ("-", "D")}
+
+
+def _rec(delay=14):
+    r = pd.read_csv(P4B / "storms_rec.csv")
+    return r[r.delay_days == delay]
+
+
+def _bars(ax, labels, series, ylabel, fmt="{:.0f}", ymax=None, pad=0.02):
+    """Grouped bars: labels on x, one bar per strategy in `series` ({key: values})."""
+    n = len(series)
+    w = 0.8 / n
+    x = np.arange(len(labels))
+    top = max(max(v) for v in series.values())
+    for i, (k, v) in enumerate(series.items()):
+        xs = x + (i - (n - 1) / 2) * w
+        ax.bar(xs, v, width=w * 0.92, color=COL4[k], label=NAME4[k], edgecolor="white", lw=0.6)
+        for xx, vv in zip(xs, v):
+            ax.text(xx, vv + top * pad, fmt.format(vv), ha="center", va="bottom", fontsize=15, color=INK)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)
+    ax.set_ylabel(ylabel)
+    ax.set_ylim(0, ymax or top * 1.18)
+    ax.spines[["top", "right"]].set_visible(False)
+
+
+def delay_v2():
+    """Clinic and homes against how late the tanker is (mean of three typhoons)."""
+    plt = _plt()
+    r = pd.read_csv(P4B / "storms_rec.csv")
+    g = r.groupby(["delay_days", "controller"])[["crit_outage_h", "flex_shed_h"]].mean()
+    fig, axs = plt.subplots(1, 2, figsize=(14, 5.4))
+    for ax, col, ttl in ((axs[0], "crit_outage_h", "Clinic, water, phones dark (h)"),
+                         (axs[1], "flex_shed_h", "Homes cut off (h)")):
+        for k in KEYS4:
+            ls, mk = STY4[k]
+            y = [g.loc[(d, k), col] for d in (3, 7, 14)]
+            ax.plot([3, 7, 14], y, color=COL4[k], ls=ls, marker=mk, ms=9, lw=3, label=NAME4[k])
+        ax.set_xticks([3, 7, 14])
+        ax.set_xlabel("Tanker late by (days)")
+        ax.set_ylabel(ttl)
+        ax.set_ylim(-8, 270)
+        ax.spines[["top", "right"]].set_visible(False)
+    axs[0].legend(frameon=False, loc="upper left", fontsize=16)
+    axs[0].text(0.03, 0.62, "AURORA and the careful\noperator stay at 0 h", transform=axs[0].transAxes,
+                fontsize=16, color=OI["blue"], va="top")
+    axs[1].text(0.03, 0.97, "3 days late:\nAURORA cuts 0 h,\nthe operator cuts 60 h", transform=axs[1].transAxes,
+                fontsize=16, color=INK, va="top")
+    fig.tight_layout(w_pad=3)
+    _save(fig, "delay_v2")
+
+
+def homes_energy_v2():
+    """Share of homes' normal energy actually delivered during the storm window, three typhoons."""
+    plt = _plt()
+    r = _rec(14)
+    fig, ax = plt.subplots(figsize=(11, 5.2))
+    for i, k in enumerate(KEYS4):
+        v = 100 - r[r.controller == k]["flex_shed_pct"].to_numpy()
+        m = v.mean()
+        ax.bar(i, m, width=0.62, color=COL4[k], edgecolor="white")
+        ax.errorbar(i, m, yerr=[[m - v.min()], [v.max() - m]], color=INK, capsize=7, lw=1.8)
+        ax.text(i, v.max() + 2.5, f"{m:.0f} %", ha="center", fontsize=20, fontweight="bold", color=INK)
+    ax.set_xticks(range(4))
+    ax.set_xticklabels(["Diesel only\n(today)", "Solar + battery\nno plan", "Careful\noperator", "AURORA"])
+    ax.set_ylabel("Home energy delivered (%)")
+    ax.set_ylim(0, 108)
+    ax.text(1, 18, "clinic dark\n75 h", ha="center", fontsize=16, color="white")
+    ax.spines[["top", "right"]].set_visible(False)
+    _save(fig, "homes_energy_v2")
+
+
+def normal_year_v2():
+    """Diesel in a normal year (diesel only, solar + battery on one rule, AURORA)."""
+    plt = _plt()
+    y = pd.read_csv(P4B / "year.csv").set_index("controller")
+    vals = [y.loc["A", "diesel_l_per_yr"], y.loc["B", "diesel_l_per_yr"], y.loc["C", "diesel_l_per_yr"]]
+    co2 = [y.loc["A", "co2_t_per_yr"], y.loc["B", "co2_t_per_yr"], y.loc["C", "co2_t_per_yr"]]
+    fig, ax = plt.subplots(figsize=(11, 5.2))
+    cols = [INK, "#9AA5B1", OI["blue"]]
+    for i, (v, c, col) in enumerate(zip(vals, co2, cols)):
+        ax.bar(i, v / 1000, width=0.6, color=col, edgecolor="white")
+        ax.text(i, v / 1000 + 8, f"{v / 1000:.0f} kL\n{c:.0f} t CO$_2$", ha="center", va="bottom", fontsize=18,
+                fontweight="bold", color=INK)
+    ax.set_xticks(range(3))
+    ax.set_xticklabels(["Diesel only\n(today)", "Solar + battery\nsimple rule", "Solar + battery\n+ AURORA"])
+    ax.set_ylabel("Diesel per year (kL)")
+    ax.set_ylim(0, 450)
+    ax.annotate("", (2.42, vals[2] / 1000), (2.42, vals[0] / 1000), arrowprops=dict(arrowstyle="<->", color=OI["blue"], lw=2))
+    ax.text(2.5, (vals[0] + vals[2]) / 2000, f"−{(vals[0] - vals[2]) / 1000:.0f} kL\n(−37 %)", va="center", fontsize=18,
+            fontweight="bold", color=OI["blue"])
+    ax.text(1.5, 410, f"AURORA's own part: {(vals[1] - vals[2]) / 1000:.0f} kL", ha="center", fontsize=16, color=SOFT)
+    ax.set_xlim(-0.6, 3.1)
+    ax.spines[["top", "right"]].set_visible(False)
+    _save(fig, "normal_year_v2")
+
+
+def stress_v2():
+    """Clinic dark hours under four stress tests (mean of three typhoons, tanker 14 days late)."""
+    plt = _plt()
+    s = pd.read_csv(P4B / "stress.csv").groupby(["stress", "controller"])["crit_outage_h"].mean()
+    n = _rec(14).groupby("controller")["crit_outage_h"].mean()
+    cases = [("Normal", None), ("One generator\nonly", "gen_fail"), ("Solar output\nhalved", "pv_damage"),
+             ("No internet\nforecast", "comms_down"), ("Clinic on a\nshared feeder", "clinic_shared")]
+    series = {k: [n[k] if c is None else s[(c, k)] for _, c in cases] for k in ("B", "O", "C")}
+    fig, ax = plt.subplots(figsize=(14, 5.4))
+    _bars(ax, [c for c, _ in cases], series, "Clinic, water, phones dark (h)", ymax=135)
+    ax.legend(frameon=False, loc="upper left", fontsize=16, ncol=3, bbox_to_anchor=(0.0, 1.14))
+    _save(fig, "stress_v2")
+
+
+def npc_size_v2():
+    """The same storms at NPC's planned size (180 kWp, 120 kWh) and at AURORA's size (300 kWp, 1,500 kWh)."""
+    plt = _plt()
+    npc = pd.read_csv(P4B / "storms_npc.csv")
+    npc = npc[npc.delay_days == 14].groupby("controller")[["crit_outage_h", "flex_shed_h"]].mean()
+    big = _rec(14).groupby("controller")[["crit_outage_h", "flex_shed_h"]].mean()
+    fig, axs = plt.subplots(1, 2, figsize=(14, 5.4))
+    for ax, col, ttl in ((axs[0], "crit_outage_h", "Clinic, water, phones dark (h)"),
+                         (axs[1], "flex_shed_h", "Homes cut off (h)")):
+        series = {k: [npc.loc[k, col], big.loc[k, col]] for k in KEYS4}
+        _bars(ax, ["NPC plan\n180 kWp, 120 kWh", "AURORA size\n300 kWp, 1,500 kWh"], series, ttl, ymax=360)
+    h, l = axs[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="upper center", ncol=4, frameon=False, fontsize=16, bbox_to_anchor=(0.5, 1.07))
+    fig.tight_layout(w_pad=3)
+    _save(fig, "npc_size_v2")
+
+
+if __name__ == "__main__":
+    pass
