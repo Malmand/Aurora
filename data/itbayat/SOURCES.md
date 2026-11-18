@@ -209,3 +209,12 @@ Each item was opened and read; the numbers quoted are as reported.
 - GMA Regional TV, 4 Aug 2025: two weeks of rain and rough seas; Itbayat's rice, corn and petroleum stocks almost depleted. Replaces the unread Manila Times 5 Aug 2025 item. https://www.gmanetwork.com/regionaltv/news/109491/food-fuel-supply-in-itbayat-running-low-due-to-bad-weather/story
 - Daily Tribune, 23 Sep 2025: BATANELCO without power after Super Typhoon Nando (Ragasa); Basco DPP equipment damage. https://tribune.net.ph/2025/09/23/three-cooperatives-remain-without-power-after-nando
 - Khaleej Times, 3 Apr 2026: national energy emergency; diesel shortages in remote towns (no Batanes mention). https://www.khaleejtimes.com/world/asia/philippine-towns-declare-state-of-calamity-us-israel-iran-war-fuels-energy-crisis
+
+## Links and checks added on 18 Nov 2026
+
+- NPC_MEP2025, Table 31 (p. 55 of the PDF text): by CY2030 NPC programmes solar PV with batteries at 147 SPUG diesel plants, 36,300 kWp of PV and 34,160 kWh of BESS, capital PHP 10.41 bn, fuel avoided about 46.24 M L. Table 27: the Accelerated Hybridization Project's first cluster (1A, Batanes, SAGR 7.39 PHP/kWh) is Basco, Itbayat and Sabtang DPP.
+- PHILSTAR2026 resolved: Chanco, B., "Missionary electrification", The Philippine Star, 29 May 2026, https://www.philstar.com/business/2026/05/29/2531203/missionary-electrification. It gives a true cost generation rate of 20 to 30 PHP/kWh in small islands against a subsidised rate of about 7 to 8.3 PHP/kWh (the "3 to 4 times" figure is our ratio, about 2.4 to 4.3). The deck now quotes the two rates instead of the ratio.
+- NPC_BCS_2023_0570 bid documents: https://www.napocor.gov.ph/BCSD/bid_files/Bid%20Docs_HO-PIB24-002.pdf (BCS 2023-0570, PR HO-PIB24-002, ABC PHP 57,697,900, bid opening 21 Nov 2023; at least 180 kW PV, at least 120 kW / 120 kWh usable ESS).
+- DOE_MEDP2024: https://legacy.doe.gov.ph/node/28464
+- INL2025: https://doi.org/10.2172/3014068 (OSTI 3014068, INL/RPT-25-83061).
+- Huangfu, Q., Hall, J. A. J. (2018). Math. Program. Comput. 10(1), 119-142. doi:10.1007/s12532-017-0130-5 (page range confirmed).
