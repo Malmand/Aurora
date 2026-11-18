@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 
 from ..data.site import load_site, value
-from . import phase4 as P4
 from .phase4b import OUT, load_rows, recommended
 
 NAMES = {"A": "Diesel only", "B": "Solar + battery, simple rule", "O": "Solar + battery, rationing operator",

@@ -24,10 +24,9 @@ import time
 import numpy as np
 import pandas as pd
 
-from aurora.data import paths, rawio
 
 from . import baselines, quantile as Qm
-from .features import (GHI_MODELS, LEAD_DAYS, QUANTILES, lead_features, load_nwp, load_truth,
+from .features import (LEAD_DAYS, lead_features, load_nwp, load_truth,
                        mslp_climatology, target_frame)
 from .geometry import K_MAX
 
