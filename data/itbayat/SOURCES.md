@@ -38,6 +38,10 @@ Site documents:
 - **NPC_BCS_2023_0570** National Power Corporation (NPC), Philippines. Public bidding BCS 2023-0570, PR HO-PIB24-002: supply and installation of a solar PV (at least 180 kWp) plus battery (at least 120 kW / 120 kWh) system with transformers and civil works, Sabtang (Savidug) Island, Batanes. Bid opening 21 Nov 2023. Approved budget for the contract (ABC) PHP 57,697,900, a ceiling, not an award price. Values provided by the user; the bid document was not opened from the cloud session. [verify] add the NPC or PhilGEPS URL and access date.
 - **ESMAP2019** ESMAP (2019). *Mini Grids for Half a Billion People: Market Outlook and Handbook for Decision Makers.* Energy Sector Management Assistance Program, Technical Report 014/19, World Bank, Washington DC. [verify] URL (World Bank Open Knowledge Repository) and the table or figure with the mini-grid capex median (about 3,900 USD/kW) and range (1,420 to 22,689 USD/kW); values provided by the user.
 - **MB2021** Manila Bulletin, 1 May 2021: NPC plans 250 kWp of solar PV for Itbayat. News, used as evidence of the plan only. Provided by the user; [verify] URL and access date.
+- **NPC_MEP2025** National Power Corporation (NPC), Corporate Planning Department. *Missionary Electrification Plan 2025-2029.* https://www.napocor.gov.ph/wp-content/uploads/Operations/NPC_Missionary_Electrification_Plan_2025-2029.pdf. Read in full by this repo (14 Nov 2026, PDF uploaded by the user). Used: Annex A, NPC-SPUG plant statistics as of 25 Dec 2024 (Itbayat DPP 850 kW rated, 740 kW dependable, December 2024 peak 215 kW); Annex M, diesel-solar hybridization for Itbayat (180 kWp, 120 kWh, PHP 51,949,600); Annex P, RE compliance (248 MWh/yr from 2028); Annex R, p. 114 of the PDF, supply and demand profile of Itbayat DPP, 2019-2023 historical and 2024-2029 forecast (peak, rated and dependable capacity, energy sales, gross generation).
+- **DOE_MEDP2016** Department of Energy, Philippines. *2016-2020 Missionary Electrification Development Plan.* https://rise.esmap.org/data/files/library/philippines/Renewable%20Energy/Phillipines_Electrification%20Plan%20medp_2016-2020.pdf. Used: Annex C, p. 88, NPC-SPUG plant use and losses and fuel rate as of Dec 2015 (Itbayat DPP fuel rate 0.326 L/kWh, PUAL 6.20 %); Annex B.1 (2015 gross generation 581.4 MWh, 18 h service).
+- **DOE_MEDP2024** Department of Energy, Philippines. *2024-2028 Missionary Electrification Development Plan.* Used as a cross-check: Annex 1, 2023 power statistics of missionary and off-grid areas (Itbayat: 24 h service, 1.086 MW rated, 0.740 MW dependable, 2023 peak 0.260 MW, 2023 consumption 981.705 MWh). PDF uploaded by the user; [verify] add the DOE URL.
+- **ERC_2025_060** Energy Regulatory Commission, Philippines. Order of 28 April 2025, ERC Case No. 2025-060 RC, petition of NPC for the UCME availment for CY 2026. https://spug.napocor.gov.ph/erc/Order_2025-060%20RC.pdf. Used: p. 4, NPC delivered diesel price for CY 2026, 65.3769 PHP/L plus 11.6923 PHP/L hauling (77.0692 PHP/L), and the CY 2023 actual average of 63.7284 PHP/L.
 
 - **PHILSTAR2026** Philstar, 29 May 2026: off-grid generation costs NPC 3 to 4 times the tariff. News, used as context only. Provided by the user; [verify] URL and access date.
 
@@ -81,7 +85,7 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 
 ## Synthetic load
 
-`load_synthetic_hourly.parquet` is **synthetic**. No hourly measured load for Itbayat is public. Its shape parameters (`load_model` in `site.yaml`) and the critical-load ratings are `ASSUMPTION`s. The series is scaled so that the peak of the reference year (2024) equals `peak_demand_kw`. Growth (+12 % since 2021, about 3.9 %/yr) is applied up to 2024 and held flat after it, so peaks in 2025-2026 move only with weather and noise (256 and 260 kW in the current build). The 2024 load factor is 0.60 (1,306 MWh/yr). Check that against the INL annual energy once it is read. Daily-mean temperature comes from ERA5 only: ERA5 agrees with the PAGASA Basco normals (+0.6 °C annual mean), while NASA POWER (MERRA-2) runs +1.9 °C warm and is not used downstream. Real plant logs replace it with `python -m aurora.data.build_itbayat --load <file>`.
+`load_synthetic_hourly.parquet` is **synthetic**: no hourly measured load for Itbayat is public. Since 14 Nov 2026 it is **calibrated to NPC's annual figures for Itbayat DPP** (`npc_itbayat_dpp` in `site.yaml`, source NPC_MEP2025 Annex R). For each year the relative profile r(t) (hourly shape, season, temperature, Sunday, noise; all `ASSUMPTION`s) is mapped to k·r(t)^γ, with γ chosen so the year's load factor and k so its gross generation match NPC; the annual peak then matches too. k and γ are interpolated between mid-year points so there is no step on 1 January. 2019-2023 are NPC historical values; 2024-2026 are NPC's forecast, since NPC has not yet published actuals for them. Years before 2019 use the 2019 values. The critical-load ratings are still `ASSUMPTION`s. Before calibration the series had a load factor of 0.60 and 1,242 MWh in 2023 against NPC's 0.46 and 1,068 MWh, with a 237 kW peak against 264 kW. Daily-mean temperature comes from ERA5 only (it agrees with the PAGASA Basco normals within +0.6 °C). Real plant logs replace it with `python -m aurora.data.build_itbayat --load <file>`.
 
 ## Value table
 
@@ -99,6 +103,9 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | diesel_out_of_service_kw_inl | 100 | kW | INL2025 | 2025-01-30 | medium | verified | One 100 kW unit out of service. |
 | diesel_available_kw | 560 | kW | INL2025 | 2025-01-30 | medium | computed | 660 - 100 kW. |
 | diesel_unit_ratings_kw | **missing** | kW | INL2025 |  | low | missing | Not stated in the INL report (only the 660 kW total and one broken 100 kW unit). Ask NPC-SPUG / BATANELCO. |
+| diesel_rated_kw_npc | 850 | kW | NPC_MEP2025 | 2023 | high | verified | Itbayat DPP total installed (rated) capacity 2022-2023, MEP 2025-2029 Annex R. Dependable 740 kW; largest unit 200 kW dependable. NPC plant statistics of 25 Dec 2024 (Annex A) give the same 850 / 740 kW. Cross-check only: the twin keeps the INL current state (560 kW available) as the harder case. |
+| diesel_largest_unit_kw_npc | 200 | kW | NPC_MEP2025 | 2023 | high | verified | Dependable capacity of the largest unit. Supports diesel_unit_kw_assumed (186.7 kW). |
+| diesel_fuel_rate_2015_npc | 0.326 | L/kWh | DOE_MEDP2016 | 2015-12 | medium | verified | Itbayat DPP 2015 fuel rate, MEDP 2016-2020 Annex C (p. 88). Basco DPP 0.259, allowable about 0.30. Older, smaller plant on 18 h service; the twin's curve averages 0.278 L/kWh. Sensitivity case. |
 | diesel_min_loading_frac | 0.3 | fraction of unit rating | ASSUMPTION |  | low | ASSUMPTION | Typical genset minimum loading; replace with INL or NPC-SPUG figure. Sensitivity range [0.25, 0.4]. |
 | diesel_units_available | 3 | units | INL2025 | 2025-01-30 | medium | computed | 4 units minus the one out of service. |
 | diesel_unit_kw_assumed | 186.7 | kW | ASSUMPTION |  | low | ASSUMPTION | Unit ratings are missing. Twin splits the 560 kW available equally over the 3 working units. Sensitivity range [140, 260]. |
@@ -110,15 +117,19 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | peak_demand_kw | 250 | kW | INL2025 | 2025-01-30 | medium | verified | INL says 'about 250 kW'; the reference year is not stated (report dated Jan 2025). |
 | peak_season | May-July | months | INL2025 | 2025-01-30 | medium | verified |  |
 | peak_growth_since_2021 | 0.12 | fraction | INL2025 | 2025-01-30 | medium | verified | +12 % peak since 2021. |
-| annual_energy_mwh | **missing** | MWh/yr | INL2025 |  | low | missing | Not reported by INL. Candidate source: Castro et al. (2022) dataset row for Itbayat. |
+| annual_energy_mwh | 1068 | MWh/yr | NPC_MEP2025 | 2023 | high | verified | Itbayat DPP gross generation 2023 (historical), 1,067.943 MWh; energy sales 1,045.195 MWh. MEP 2025-2029 Annex R, p. 114 of the PDF. Year-by-year values in npc_itbayat_dpp below. |
+| peak_demand_kw_2023_npc | 264 | kW | NPC_MEP2025 | 2023 | high | verified | Annual peak demand 2023, last historical year in MEP 2025-2029 Annex R (p. 114). DOE MEDP 2024-2028 Annex 1 gives 260 kW and 981.7 MWh consumption for 2023 (cross-check). |
+| peak_demand_kw_dec2024_npc | 215 | kW | NPC_MEP2025 | 2024-12-25 | high | verified | Peak load for the month of December 2024, MEP 2025-2029 Annex A (NPC-SPUG plant statistics as of 25 Dec 2024). Off-season month. |
+| load_factor_2023_npc | 0.462 | fraction | NPC_MEP2025 | 2023 | high | computed | 1,067.943 MWh / (0.264 MW x 8760 h). The pre-calibration synthetic load had 0.60. |
+| energized_households_npc | 1009 | households | NPC_MEP2025 | 2024 | high | verified | MEP 2025-2029 Annex R; 923 households in the 2020 census, 5 barangays. Annex M lists 1,035 electrified households. |
 | diesel_price_php_per_l | 113 | PHP/L | INL2025 | 2025-01-30 | medium | verified | INL: about 113 PHP/L (about 7.52 USD/gal), described as fluctuating. Base case. The team case study used 65 PHP/L (known problem 1). |
-| diesel_price_low_php_per_l | 65 | PHP/L | TEAM_CASE |  | low | ASSUMPTION | Sensitivity low case (value used by the team case study, unsourced there). |
+| diesel_price_low_php_per_l | 77.07 | PHP/L | ERC_2025_060 | 2025-04-28 | high | verified | NPC delivered diesel price projected for CY 2026, average over all SPUG plants: 65.3769 PHP/L delivered plus 11.6923 PHP/L hauling. ERC Order, Case 2025-060 RC, p. 4. NPC's CY 2023 actual average was 63.73 PHP/L before hauling. Low case; replaces the unsourced 65 PHP/L of the team case. |
 | diesel_price_high_php_per_l | 140 | PHP/L | BRIEF |  | low | ASSUMPTION | Sensitivity high case. |
 | fuel_supply_months_now | 2 | months | INL2025 | 2025-01-30 | medium | verified | 'About 2 months' of supply with the current system. |
 | fuel_supply_months_with_inl_system | 3 | months | INL2025 | 2025-01-30 | medium | verified |  |
 | fuel_storage_l | **missing** | L | INL2025 |  | low | missing | Not in the INL report. Ask NPC-SPUG. Needed for the Phase 3 fuel state; until then derive from 'about 2 months of supply' as an ASSUMPTION. |
 | resupply_interval_days | **missing** | days | INL2025 |  | low | missing | Not in the INL report. |
-| fuel_storage_l_assumed | 60000 | L | ASSUMPTION |  | low | ASSUMPTION | Stands in for the missing fuel_storage_l. 2 months (INL) x 991 L/day, the diesel-only use of the 2024 synthetic load (1,306 MWh/yr x 0.277 L/kWh / 365). Sensitivity range [30000, 90000]. |
+| fuel_storage_l_assumed | 52000 | L | ASSUMPTION |  | low | ASSUMPTION | Stands in for the missing fuel_storage_l. 2 months (INL) x 853 L/day, the diesel-only use of NPC's 2024 gross generation (1,124 MWh/yr x 0.277 L/kWh / 365). Was 60,000 L before the load was calibrated to NPC (1,306 MWh/yr synthetic). Sensitivity range [30000, 90000]. |
 | resupply_interval_days_assumed | 30 | days | ASSUMPTION |  | low | ASSUMPTION | Stands in for the missing resupply_interval_days. Each delivery tops the tank up to capacity. Sensitivity range [14, 60]. |
 | overdue_delay_scenarios_days | [3, 7, 14] | days after the planned delivery | ASSUMPTION |  | low | ASSUMPTION | Possible total delays of an overdue tanker. Scenarios already passed are dropped and the weights renormalised. Sensitivity range [[2, 5, 10], [5, 10, 21]]. |
 | overdue_delay_weights | [0.5, 0.3, 0.2] | probability | ASSUMPTION |  | low | ASSUMPTION | Prior weights of the delay scenarios. With the 500 vs 150 PHP/kWh penalties, flexible load is shed only when P(fuel shortfall) > 0.3. Sensitivity range [[0.7, 0.2, 0.1], [0.2, 0.3, 0.5]]. |
@@ -156,6 +167,10 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | pv_kwp_case | 500 | kWp | TEAM_CASE |  | low | ASSUMPTION | Illustrative size from the team case study. |
 | battery_kwh_case | 1500 | kWh | TEAM_CASE |  | low | ASSUMPTION |  |
 | battery_kw_case | 375 | kW | TEAM_CASE |  | low | ASSUMPTION | Battery power of the team case study (0.25 C). Sensitivity range [300, 750]. |
+| pv_kwp_npc | 180 | kWp | NPC_MEP2025 | 2025 | high | verified | NPC's own diesel-solar hybridization plan for Itbayat DPP: 180 kWp PV with 120 kWh BESS, budget PHP 51,949,600 (Annex M, pre-implementation); RE compliance from 2028 with 248 MWh/yr of RECs (Annex P). Annex R shows it in 2026. |
+| battery_kwh_npc | 120 | kWh | NPC_MEP2025 | 2025 | high | verified |  |
+| battery_kw_npc | 120 | kW | ASSUMPTION |  | low | ASSUMPTION | Power rating not stated for Itbayat; the Sabtang bid of the same size asks for at least 120 kW / 120 kWh (NPC_BCS_2023_0570). Sensitivity range [60, 120]. |
+| capex_npc_hybrid_php | 51949600 | PHP | NPC_MEP2025 | 2025 | high | verified | Budget requirement for the Itbayat 180 kWp / 120 kWh hybridization, MEP 2025-2029 Annex M. |
 | cest_reserve_soc | 0.3 | fraction | BRIEF |  | medium | ASSUMPTION | CEST definition: SOC reserve floor. Design choice, not a site fact. |
 | battery_eta_oneway | 0.95 | fraction | ASSUMPTION |  | medium | ASSUMPTION | Charge and discharge efficiency each (round trip about 0.90). Sensitivity range [0.92, 0.97]. |
 | battery_soc_min | 0.2 | fraction | TEAM_CASE |  | low | ASSUMPTION | Hard lower SOC limit (team case value). The CEST reserve (0.30) sits above it. Sensitivity range [0.1, 0.3]. |
@@ -166,6 +181,12 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | risk_penalty_php_per_kwh | 50 | PHP/kWh | ASSUMPTION |  | low | ASSUMPTION | Weight on the expected critical energy shortfall if diesel stopped (Monte Carlo), averaged over the horizon. Sensitivity range [0, 200]. |
 | risk_window_h | 24 | h | ASSUMPTION |  | low | ASSUMPTION | Window over which R(t) counts a critical shortfall with diesel off. Sensitivity range [12, 48]. |
 | fuel_scarcity_penalty_php_per_kwh | 500 | PHP/kWh | ASSUMPTION |  | low | ASSUMPTION | Penalty on critical energy that fuel plus battery at the horizon end cannot cover until the expected delivery. Above voll_flex so flexible load is shed first. Sensitivity range [200, 2000]. |
+| flex_feeder_blocks | 4 | blocks | ASSUMPTION |  | low | ASSUMPTION | Flexible (household) load is cut in whole feeder blocks by line staff, not by the exact kW. Model v2; model v1 (Phase 4) shed continuously. Sensitivity range [2, 8]. |
+| crit_noise_sigma | 0.12 | fraction | ASSUMPTION |  | low | ASSUMPTION | Hour-to-hour variability of critical demand around its synthetic schedule (AR(1) multiplicative, stationary SD). Model v1 had a fixed schedule. Sensitivity range [0.05, 0.25]. |
+| crit_noise_rho | 0.9 | - | ASSUMPTION |  | low | ASSUMPTION | AR(1) coefficient of the critical-demand variability (hourly). Sensitivity range [0.7, 0.97]. |
+| fuel_reserve_l_assumed | 250 | L | ASSUMPTION |  | low | ASSUMPTION | Fuel AURORA's plan tries not to go below (about 12 h of one unit at minimum load), so a generator can still start. Fixes the 12.7 L near-miss of model v1. Sensitivity range [0, 500]. |
+| operator_plan_delay_days_assumed | 14 | d | ASSUMPTION |  | low | ASSUMPTION | Rationing operator (controller O): once the tanker is overdue, it rations fuel so the tank lasts until this many days after the planned delivery (the longest delay scenario), as NPC and BATANELCO did with curtailment in 2022 and 2023. Sensitivity range [7, 21]. |
+| operator_sfc_loading_assumed | 0.7 | fraction | ASSUMPTION |  | low | ASSUMPTION | Average generator loading the operator assumes when converting energy to litres. Sensitivity range [0.5, 0.9]. |
 | crit_clinic_kw | 15 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [7.5, 22.5]. |
 | crit_water_kw | 20 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [10, 30]. |
 | crit_telecom_kw | 5 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [2.5, 7.5]. |
@@ -173,3 +194,27 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | crit_cold_storage_kw | 15 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [7.5, 22.5]. |
 
 <!-- END VALUE TABLE -->
+
+## Event evidence read on 18 Nov 2026 (news; evidence of events only, used on the deck's problem slides)
+
+Each item was opened and read; the numbers quoted are as reported.
+
+- Philstar, 15 Sep 2009, "Batanes power supply to last until month's end": M/V Saver (only authorised fuel ship) in dry dock; Batan cut to 16 h then 12 h; Sabtang and Itbayat on 6 h of power. https://philstar.com/nation/2009/09/15/504932/batanes-power-supply-last-until-months-end
+- Philstar, 19 Jul 2011, "Batanes calamity state over fuel lack": state of calamity; 24,000 L of a 114,000 L shipment for Sabtang and Itbayat. https://www.philstar.com/headlines/2011/07/19/707283/batanes-calamity-state-over-fuel-lack
+- Philstar, 27 Aug 2011, "Batanes fuel stock to last for only 12 days": 36,000 L left; main plant 10 h a day; Sabtang and Itbayat 6 h a day. https://philstar.com/nation/2011/08/27/720484/batanes-fuel-stock-last-only-12-days
+- Manila Bulletin, 3 Sep 2022, "'Power curtailment' implemented in Batanes due to delay in fuel supply": power 08:00 to midnight (16 h); congested port in Bataan and Typhoon Henry. https://mb.com.ph/2022/09/03/power-curtailment-implemented-in-batanes-due-to-delay-in-fuel-supply
+- GMA News, 29 May 2023: NPC motor tanker stranded in Bolinao, Pangasinan, by Typhoon Betty; governor asks for bigger tanks and more gensets. https://www.gmanetwork.com/news/topstories/regions/871463/batanes-hit-with-power-outage-as-typhoon-betty-causes-fuel-shortage/story/
+- Rappler, 29 May 2023: rotational 8 h interruptions from 1 Jun 2023. https://www.rappler.com/nation/luzon/batanes-rotational-blackouts-typhoon-betty-affects-fuel-supply/
+- Inquirer, 30 Oct 2024: Itbayat DPP shut down on 29 Oct 2024 ahead of Typhoon Leon. https://business.inquirer.net/487474/power-plants-in-batanes-shut-down-ahead-of-leon
+- GMA Regional TV, 4 Aug 2025: two weeks of rain and rough seas; Itbayat's rice, corn and petroleum stocks almost depleted. Replaces the unread Manila Times 5 Aug 2025 item. https://www.gmanetwork.com/regionaltv/news/109491/food-fuel-supply-in-itbayat-running-low-due-to-bad-weather/story
+- Daily Tribune, 23 Sep 2025: BATANELCO without power after Super Typhoon Nando (Ragasa); Basco DPP equipment damage. https://tribune.net.ph/2025/09/23/three-cooperatives-remain-without-power-after-nando
+- Khaleej Times, 3 Apr 2026: national energy emergency; diesel shortages in remote towns (no Batanes mention). https://www.khaleejtimes.com/world/asia/philippine-towns-declare-state-of-calamity-us-israel-iran-war-fuels-energy-crisis
+
+## Links and checks added on 18 Nov 2026
+
+- NPC_MEP2025, Table 31 (p. 55 of the PDF text): by CY2030 NPC programmes solar PV with batteries at 147 SPUG diesel plants, 36,300 kWp of PV and 34,160 kWh of BESS, capital PHP 10.41 bn, fuel avoided about 46.24 M L. Table 27: the Accelerated Hybridization Project's first cluster (1A, Batanes, SAGR 7.39 PHP/kWh) is Basco, Itbayat and Sabtang DPP.
+- PHILSTAR2026 resolved: Chanco, B., "Missionary electrification", The Philippine Star, 29 May 2026, https://www.philstar.com/business/2026/05/29/2531203/missionary-electrification. It gives a true cost generation rate of 20 to 30 PHP/kWh in small islands against a subsidised rate of about 7 to 8.3 PHP/kWh (the "3 to 4 times" figure is our ratio, about 2.4 to 4.3). The deck now quotes the two rates instead of the ratio.
+- NPC_BCS_2023_0570 bid documents: https://www.napocor.gov.ph/BCSD/bid_files/Bid%20Docs_HO-PIB24-002.pdf (BCS 2023-0570, PR HO-PIB24-002, ABC PHP 57,697,900, bid opening 21 Nov 2023; at least 180 kW PV, at least 120 kW / 120 kWh usable ESS).
+- DOE_MEDP2024: https://legacy.doe.gov.ph/node/28464
+- INL2025: https://doi.org/10.2172/3014068 (OSTI 3014068, INL/RPT-25-83061).
+- Huangfu, Q., Hall, J. A. J. (2018). Math. Program. Comput. 10(1), 119-142. doi:10.1007/s12532-017-0130-5 (page range confirmed).

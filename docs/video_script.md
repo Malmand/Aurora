@@ -1,3 +1,5 @@
+> **Superseded (model v1, Nov 2026).** Current numbers: [`docs/headline_numbers.md`](headline_numbers.md) and the README. Kept for the record.
+
 # Video script: AURORA, 2 minutes
 
 About 300 words of voice-over, which fits 2 minutes at about 150 words a minute. Shots use the figures in `figures/final/` and the slides from `docs/slide_content.md`. Animate a figure by revealing panels or lines in order; do not change the data. Where a number appears on screen, its source is given.

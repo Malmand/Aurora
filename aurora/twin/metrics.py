@@ -19,6 +19,8 @@ def kpis(run: pd.DataFrame, p) -> dict:
         renewable_share_pct=round(100 * (1 - run["diesel"].sum() / served), 1) if served else np.nan,
         curtail_kwh=round(run["curtail"].sum(), 0),
         flex_shed_kwh=round(run["shed"].sum(), 1),
+        flex_shed_h=int((run["shed"] > 1e-3).sum()),
+        flex_shed_pct=round(100 * float(run["shed"].sum() / run["flex"].sum()), 1) if run["flex"].sum() else 0.0,
         crit_unserved_kwh=round(run["unserved_crit"].sum(), 1),
         crit_outage_h=int((run["unserved_crit"] > 1e-3).sum()),
         battery_throughput_kwh=round(run["discharge"].sum(), 0),

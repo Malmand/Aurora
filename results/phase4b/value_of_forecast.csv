@@ -1,0 +1,10 @@
+storm,forecast,crit_outage_h,crit_unserved_kwh,flex_shed_h,flex_shed_kwh,flex_shed_pct,diesel_l,tank_min_l,cest_median_h,cest_ge24_pct,relaxed_steps
+mawar2023,perfect,0,0.0,89,6425.1,18.1,7954.0,250.0,72.0,92.4,0
+mawar2023,phase2,0,0.0,107,6363.5,17.9,7980.0,178.0,29.7,58.1,0
+mawar2023,phase2_nwp,0,0.0,118,6614.3,18.6,8013.0,225.0,22.7,43.1,0
+mekkhala2026,perfect,0,0.0,194,17134.8,35.5,7910.0,250.0,72.0,95.4,0
+mekkhala2026,phase2,0,0.0,175,16751.5,34.7,7937.0,171.0,40.1,65.5,0
+mekkhala2026,phase2_nwp,0,0.0,187,16976.5,35.1,7926.0,191.0,72.0,77.5,0
+ragasa2025,perfect,0,0.0,120,8022.1,22.0,7443.0,250.0,72.0,88.0,0
+ragasa2025,phase2,0,0.0,133,7942.1,21.8,7444.0,210.0,27.6,55.3,0
+ragasa2025,phase2_nwp,0,0.0,133,7890.9,21.7,7485.0,192.0,72.0,71.5,0

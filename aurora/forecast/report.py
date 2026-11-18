@@ -11,7 +11,7 @@ from aurora.plotting import style
 
 from . import evaluate as E, quantile as Qm
 from .backtest import EVAL_START
-from .features import GHI_MODELS, ISSUE_HOUR_UTC, QUANTILES
+from .features import ISSUE_HOUR_UTC, QUANTILES
 
 OUT_MD = paths.DOCS_DIR / "validation_forecast.md"
 FIG_SKILL = paths.FIG_DIR / "forecast_skill_lead"

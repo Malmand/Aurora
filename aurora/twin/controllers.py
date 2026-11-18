@@ -54,6 +54,75 @@ class SimpleRule:
         return Decision(n_on=n, p_diesel=gap)
 
 
+class RationingOperator:
+    """O: the simple rule plus what a sensible operator does when the tanker is late.
+
+    Model v2 baseline (Phase 4b). Once a planned delivery is overdue, the operator
+    estimates the fuel needed to reach the latest plausible arrival (planned time +
+    op_plan_delay_days) from the last 24 h of meter readings:
+
+        F_full = (sum(load) - eta^2 sum(solar))+ per day x days left x sfc
+        F_crit = (sum(crit) - eta^2 sum(solar))+ per day x days left x sfc
+
+    If the tank holds less than F_full, a share f = (F_full - tank) / (F_full - F_crit)
+    of the flexible load is cut, in whole feeder blocks, in every hour the battery
+    cannot carry the load (rotating evening and night brownouts, as NPC and BATANELCO
+    did in 2022 and 2023). sfc = fuel per kWh at the assumed average loading.
+    It uses meters and the fuel gauge only, no forecast.
+    """
+    name = "O"
+    has_pv = has_battery = True
+    uses_forecast = False
+
+    def __init__(self, p):
+        self.p = p
+        self.rule = SimpleRule(p)
+        self.hist = []
+        self.last = {}
+
+    def _overdue(self, t, tank):
+        s = tank.s
+        return [pt for pt in s.planned(t - pd.Timedelta(days=60), t + pd.Timedelta(hours=1))
+                if pt not in tank.delivered and pt <= t]
+
+    def cut_share(self, t, tank) -> float:
+        p = self.p
+        late = self._overdue(t, tank)
+        if not late or not self.hist:
+            return 0.0
+        worst = min(late) + pd.Timedelta(days=p.op_plan_delay_days)
+        days_left = max((worst - t) / pd.Timedelta(days=1), 1.0)
+        h = np.array(self.hist[-24:])
+        per_day = 24.0 / len(h)
+        load, crit, sol = h[:, 0].sum(), h[:, 1].sum(), h[:, 2].sum()
+        sfc = p.fuel_b + p.fuel_a / p.op_sfc_loading
+        f_full = max(load - p.eta ** 2 * sol, 0.0) * per_day * days_left * sfc
+        f_crit = max(crit - p.eta ** 2 * sol, 0.0) * per_day * days_left * sfc
+        if tank.level >= f_full:
+            return 0.0
+        return float(np.clip((f_full - tank.level) / max(f_full - f_crit, 1e-6), 0.0, 1.0))
+
+    def decide(self, t, state, actual, fc=None):
+        p = self.p
+        self.hist.append((actual["crit"] + actual["flex"], actual["crit"], actual["solar"]))
+        self.hist = self.hist[-24:]
+        f = self.cut_share(t, state["tank"])
+        self.last["cut_share"] = f
+        if f <= 0:
+            return self.rule.decide(t, state, actual)
+        B = max(int(p.n_flex_blocks), 1)
+        blocks = min(B, int(np.ceil(f * B - 1e-9)))
+        r = actual["crit"] + actual["flex"] - actual["solar"]
+        dis_max = min(p.bat_kw, max(state["soc"] - p.soc_min, 0) * p.bat_kwh * p.eta)
+        if r <= dis_max + 1e-9:                    # battery carries it: no brownout this hour
+            return self.rule.decide(t, state, actual)
+        shed = blocks * actual["flex"] / B
+        dec = self.rule.decide(t, state, dict(actual, flex=actual["flex"] - shed))
+        dec.shed_flex = shed
+        dec.note = f"ration {blocks}/{B}"
+        return dec
+
+
 class AuroraMPC:
     name = "C"
     has_pv = has_battery = True
@@ -111,4 +180,4 @@ class AuroraMPC:
                         note="relaxed" if plan["relaxed"] else "")
 
 
-CONTROLLERS = {"A": DieselOnly, "B": SimpleRule, "C": AuroraMPC}
+CONTROLLERS = {"A": DieselOnly, "B": SimpleRule, "O": RationingOperator, "C": AuroraMPC}

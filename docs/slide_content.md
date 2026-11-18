@@ -1,3 +1,5 @@
+> **Superseded (model v1, Nov 2026).** Current numbers: [`docs/headline_numbers.md`](headline_numbers.md) and the README. Kept for the record.
+
 # Slide content: AURORA, Global Sustainability Challenge 2026-27 (Sustainable Energy)
 
 Nine slides in the GSC template order. Each slide has a headline, the text, the figure and where every number comes from. Figures are in `figures/final/` (PDF for print, PNG for the deck). Keep text short on the slide; the detail is for the speaker notes.

@@ -15,6 +15,7 @@ from ..data.site import load_site, value
 SIZINGS = {
     "inl": ("pv_kwp_inl", "battery_kw_inl", "battery_kwh_inl"),
     "case": ("pv_kwp_case", "battery_kw_case", "battery_kwh_case"),
+    "npc": ("pv_kwp_npc", "battery_kw_npc", "battery_kwh_npc"),      # NPC's own plan for Itbayat
 }
 
 
@@ -53,6 +54,12 @@ class SystemParams:
     start_cost_php: float
     php_per_usd: float
     sizing: str = "inl"
+    # model v2 (Phase 4b); defaults reproduce model v1
+    n_flex_blocks: int = 0          # 0 = continuous shedding (v1); N = whole feeder blocks
+    fuel_reserve_l: float = 0.0     # MPC tries to keep this much fuel
+    op_plan_delay_days: float = 14.0
+    op_sfc_loading: float = 0.7
+    crit_shared_frac: float = 0.0   # stress test: share of critical load on the last flexible feeder
 
     @property
     def fuel_cost_per_l(self) -> float:
@@ -99,3 +106,12 @@ def from_site(sizing: str = "inl", site: dict | None = None, **override) -> Syst
         sizing=sizing,
     )
     return p.with_(**override) if override else p
+
+
+def v2(p: SystemParams, site: dict | None = None) -> SystemParams:
+    """Model v2 settings (Phase 4b): feeder-block shedding, fuel reserve, rationing operator."""
+    s = site or load_site()
+    v = lambda k: value(s, k)  # noqa: E731
+    return p.with_(n_flex_blocks=int(v("flex_feeder_blocks")), fuel_reserve_l=float(v("fuel_reserve_l_assumed")),
+                   op_plan_delay_days=float(v("operator_plan_delay_days_assumed")),
+                   op_sfc_loading=float(v("operator_sfc_loading_assumed")))

@@ -197,9 +197,9 @@ def fig_a_site_system():
             line([(xm - 0.3 * gap, t_y), (xm + 0.3 * gap, t_y)], c=OI["blue"], lw=1.1)
         x_ += w_ + gap
     # power sources, bus, loads
-    box(0.2, 5.0, 2.8, 1.5, "Solar PV", "500 kWp", OI["orange"])
-    box(0.2, 3.0, 2.8, 1.5, "Battery", "375 kW / 1,000 kWh", OI["blue"])
-    box(0.2, 1.0, 2.8, 1.5, "Diesel", "3 units, 560 kW", "black")
+    box(0.2, 5.0, 2.8, 1.5, "Solar PV", "300 kWp", OI["orange"])
+    box(0.2, 3.0, 2.8, 1.5, "Battery", "375 kW / 1,500 kWh", OI["blue"])
+    box(0.2, 1.0, 2.8, 1.5, "Diesel", "850 kW rated, 3 units", "black")
     box(4.0, 1.4, 1.6, 4.6, "Island\ngrid\n480 V", "", "0.35")
     box(6.4, 4.3, 3.0, 1.6, "Critical load", "clinic, water, telecoms", OI["vermillion"])
     box(6.4, 1.8, 3.0, 1.6, "Flexible load", "homes, shops", "0.45")
@@ -222,7 +222,7 @@ def fig_a_site_system():
     line([(9.65, 7.4), (9.65, 2.6), (9.4, 2.6)], **cs)
     bx.text(3.62, 7.25, "charge / discharge,\ngenerators on / off", fontsize=5.4, color=OI["blue"], va="top")
     bx.text(9.55, 7.25, "shed only\nif needed", fontsize=5.4, color=OI["blue"], va="top", ha="right")
-    bx.text(6.6, -0.55, "Recommended size (Phase 4); diesel plant\nas reported by INL (2025)", ha="center",
+    bx.text(6.6, -0.55, "AURORA size; diesel plant\nas reported by NPC", ha="center",
             fontsize=5.2, color="0.4", va="center")
     fig.text(0.535, 0.965, "B", fontsize=11, fontweight="bold", va="top")
     style.save(fig, FIG / "figa_site_system")

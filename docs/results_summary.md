@@ -1,3 +1,5 @@
+> **Superseded (model v1, Nov 2026).** Current numbers: [`docs/headline_numbers.md`](headline_numbers.md) and the README. Kept for the record.
+
 # AURORA on Itbayat: results in one page
 
 Itbayat, in Batanes, has about 3,100 people (PhilAtlas) and a diesel-only power grid. All its fuel comes by sea. When typhoons or monsoon seas stop the tanker, the island can run out of diesel: this happened in 2009, 2011, 2022, twice in 2023, 2025 and 2026 (news reports, listed in `data/itbayat/SOURCES.md`).

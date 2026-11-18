@@ -84,7 +84,8 @@ def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = Fal
     uc = [_var(m, f"uc{t}", 0, float(inp.crit[t])) for t in T] if relax_critical else None
 
     cf = p.fuel_cost_per_l
-    fuel = [p.fuel_a * p.unit_kw * n[t] + p.fuel_b * pd_[t] for t in T]
+    reserve = float(getattr(p, "fuel_reserve_l", 0.0) or 0.0)
+    fuel =[p.fuel_a * p.unit_kw * n[t] + p.fuel_b * pd_[t] for t in T]
     obj = []
     e_prev = inp.e0
     v_prev = [inp.tank0 for _ in K]
@@ -103,7 +104,8 @@ def solve(inp: MPCInput, p, time_limit: float = 10.0, relax_critical: bool = Fal
         for k in K:
             v_start = p.tank_l if t in deliveries[k] else v_prev[k]
             m += V[k][t + 1] == v_start - fuel[t], f"tank{k}_{t}"
-            m += ub[k] >= -V[k][t + 1], f"deficit{k}_{t}"
+            # fuel below the reserve counts as borrowed (model v2; reserve 0 in model v1)
+            m += ub[k] >= reserve - V[k][t + 1], f"deficit{k}_{t}"
         if exclusive_battery and E > 0:
             y = _var(m, f"y{t}", cat="Binary")
             m += pc[t] <= p.bat_kw * y, f"chy{t}"
