@@ -1,3 +1,5 @@
+> **Superseded (model v1, Nov 2026).** Current numbers: [`docs/headline_numbers.md`](headline_numbers.md) and the README. Kept for the record.
+
 # Phase 4 results: storms, value of forecasting, full years, sizing, sensitivity, costs
 
 Code: [`aurora/experiments/phase4.py`](../aurora/experiments/phase4.py) (runs) and [`phase4_tables.py`](../aurora/experiments/phase4_tables.py) (tables). Every number below comes from a CSV in [`results/phase4/`](../results/phase4/); `tables.md` there holds all tables in full. Rebuild the tables from the committed runs with `python -m aurora.experiments.phase4 tables`.
