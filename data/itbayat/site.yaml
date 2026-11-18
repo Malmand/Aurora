@@ -1,0 +1,355 @@
+# Itbayat site data: single source of truth for AURORA.
+# Every entry: value, unit, source (key in SOURCES.md), date (of the information),
+# confidence (high / medium / low), status:
+#   verified          checked in this repo against the primary document
+#   brief_unverified  taken from the team's project brief, which cites the primary source;
+#                     not yet checked against the document (host blocked from the
+#                     cloud session on 2026-11-01). Check before the deck.
+#   computed          derived by a script in this repo from a downloaded dataset
+#   ASSUMPTION        no source; needs a sensitivity run (range given)
+#   missing           not yet known; value is null and nothing downstream may use it
+# SOURCES.md's value table is generated from this file:
+#   python -m aurora.data.site --write-sources
+
+site:
+  name: Itbayat, Batanes, Philippines
+  timezone: Asia/Manila   # PHT, UTC+8, no daylight saving
+
+values:
+  # ---------------- location and people ----------------
+  latitude:
+    {value: 20.78, unit: deg N, source: PHILATLAS, date: null, confidence: high, status: verified,
+     note: "PhilAtlas gives 20.7858 N, 121.8407 E. Town centre. Open-Meteo snaps to its grid; the grid point used is stored in each weather parquet."}
+  longitude:
+    {value: 121.84, unit: deg E, source: PHILATLAS, date: null, confidence: high, status: verified}
+  population:
+    {value: 3128, unit: persons, source: PHILATLAS, date: "2020 census", confidence: high, status: verified,
+     note: "831 households (2015 census, latest on the page); land area 83.13 km2."}
+
+  # ---------------- diesel plant ----------------
+  diesel_installed_kw_doe:
+    {value: 1086, unit: kW, source: DOE_OFFGRID, date: "list as of 31 Dec 2021", confidence: high, status: verified,
+     note: "ITBAYAT DPP, NPC-SPUG, 1.086 MW installed, 24 h operation, commissioned Dec 1996. No unit breakdown. Recorded for comparison; not the current state. checked 2026-11-02 against the document text via web fetch; page not recorded."}
+  diesel_dependable_kw_doe:
+    {value: 790, unit: kW, source: DOE_OFFGRID, date: "list as of 31 Dec 2021", confidence: high, status: verified}
+  diesel_units_inl:
+    {value: 4, unit: units, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
+     note: "Current state used by AURORA (brief, known problem 2). checked 2026-11-02 against the document text via web fetch; page not recorded."}
+  diesel_combined_kw_inl:
+    {value: 660, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: verified}
+  diesel_out_of_service_kw_inl:
+    {value: 100, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
+     note: "One 100 kW unit out of service."}
+  diesel_available_kw:
+    {value: 560, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: computed,
+     note: "660 - 100 kW."}
+  diesel_unit_ratings_kw:
+    {value: null, unit: kW, source: INL2025, date: null, confidence: low, status: missing,
+     note: "Not stated in the INL report (only the 660 kW total and one broken 100 kW unit). Ask NPC-SPUG / BATANELCO."}
+  diesel_rated_kw_npc:
+    {value: 850, unit: kW, source: NPC_MEP2025, date: 2023, confidence: high, status: verified,
+     note: "Itbayat DPP total installed (rated) capacity 2022-2023, MEP 2025-2029 Annex R. Dependable 740 kW; largest unit 200 kW dependable. NPC plant statistics of 25 Dec 2024 (Annex A) give the same 850 / 740 kW. Cross-check only: the twin keeps the INL current state (560 kW available) as the harder case."}
+  diesel_largest_unit_kw_npc:
+    {value: 200, unit: kW, source: NPC_MEP2025, date: 2023, confidence: high, status: verified,
+     note: "Dependable capacity of the largest unit. Supports diesel_unit_kw_assumed (186.7 kW)."}
+  diesel_fuel_rate_2015_npc:
+    {value: 0.326, unit: L/kWh, source: DOE_MEDP2016, date: 2015-12, confidence: medium, status: verified,
+     note: "Itbayat DPP 2015 fuel rate, MEDP 2016-2020 Annex C (p. 88). Basco DPP 0.259, allowable about 0.30. Older, smaller plant on 18 h service; the twin's curve averages 0.278 L/kWh. Sensitivity case."}
+  diesel_min_loading_frac:
+    {value: 0.30, unit: fraction of unit rating, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.25, 0.40], note: "Typical genset minimum loading; replace with INL or NPC-SPUG figure."}
+
+  diesel_units_available:
+    {value: 3, unit: units, source: INL2025, date: 2025-01-30, confidence: medium, status: computed,
+     note: "4 units minus the one out of service."}
+  diesel_unit_kw_assumed:
+    {value: 186.7, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [140, 260], note: "Unit ratings are missing. Twin splits the 560 kW available equally over the 3 working units."}
+  diesel_fuel_noload_l_per_h_per_kw:
+    {value: 0.04, unit: L/h per kW of committed rating, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.02, 0.08], note: "Linear fuel curve F = a * P_rated * on + b * P. With b = 0.22 this gives 0.277 L/kWh at 70 % loading, the team case value."}
+  diesel_fuel_slope_l_per_kwh:
+    {value: 0.22, unit: L/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.20, 0.25], note: "Incremental fuel use of the linear fuel curve."}
+  diesel_sfc_team_l_per_kwh:
+    {value: 0.277, unit: L/kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.25, 0.33], note: "Team case flat fuel rate, labelled there as an NPC-SPUG rate without a document. Used only to size the assumed fuel tank."}
+  diesel_start_cost_php:
+    {value: 300, unit: PHP per start, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 1000], note: "Wear cost per unit start in the MPC objective; stops unit cycling."}
+  co2_kg_per_l:
+    {value: 2.68, unit: kg CO2/L, source: IPCC2006, date: 2006, confidence: high, status: computed,
+     note: "74,100 kg CO2/TJ x 43.0 TJ/Gg (IPCC 2006 defaults for gas/diesel oil) x 0.84 kg/L density (ASSUMPTION). Check table pages. [verify]"}
+
+  # ---------------- demand ----------------
+  peak_demand_kw:
+    {value: 250, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
+     note: "INL says 'about 250 kW'; the reference year is not stated (report dated Jan 2025)."}
+  peak_season:
+    {value: "May-July", unit: months, source: INL2025, date: 2025-01-30, confidence: medium, status: verified}
+  peak_growth_since_2021:
+    {value: 0.12, unit: fraction, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
+     note: "+12 % peak since 2021."}
+  annual_energy_mwh:
+    {value: 1068, unit: MWh/yr, source: NPC_MEP2025, date: 2023, confidence: high, status: verified,
+     note: "Itbayat DPP gross generation 2023 (historical), 1,067.943 MWh; energy sales 1,045.195 MWh. MEP 2025-2029 Annex R, p. 114 of the PDF. Year-by-year values in npc_itbayat_dpp below."}
+  peak_demand_kw_2023_npc:
+    {value: 264, unit: kW, source: NPC_MEP2025, date: 2023, confidence: high, status: verified,
+     note: "Annual peak demand 2023, last historical year in MEP 2025-2029 Annex R (p. 114). DOE MEDP 2024-2028 Annex 1 gives 260 kW and 981.7 MWh consumption for 2023 (cross-check)."}
+  peak_demand_kw_dec2024_npc:
+    {value: 215, unit: kW, source: NPC_MEP2025, date: 2024-12-25, confidence: high, status: verified,
+     note: "Peak load for the month of December 2024, MEP 2025-2029 Annex A (NPC-SPUG plant statistics as of 25 Dec 2024). Off-season month."}
+  load_factor_2023_npc:
+    {value: 0.462, unit: fraction, source: NPC_MEP2025, date: 2023, confidence: high, status: computed,
+     note: "1,067.943 MWh / (0.264 MW x 8760 h). The pre-calibration synthetic load had 0.60."}
+  energized_households_npc:
+    {value: 1009, unit: households, source: NPC_MEP2025, date: 2024, confidence: high, status: verified,
+     note: "MEP 2025-2029 Annex R; 923 households in the 2020 census, 5 barangays. Annex M lists 1,035 electrified households."}
+
+  # ---------------- fuel ----------------
+  diesel_price_php_per_l:
+    {value: 113, unit: PHP/L, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
+     note: "INL: about 113 PHP/L (about 7.52 USD/gal), described as fluctuating. Base case. The team case study used 65 PHP/L (known problem 1)."}
+  diesel_price_low_php_per_l:
+    {value: 77.07, unit: PHP/L, source: ERC_2025_060, date: 2025-04-28, confidence: high, status: verified,
+     note: "NPC delivered diesel price projected for CY 2026, average over all SPUG plants: 65.3769 PHP/L delivered plus 11.6923 PHP/L hauling. ERC Order, Case 2025-060 RC, p. 4. NPC's CY 2023 actual average was 63.73 PHP/L before hauling. Low case; replaces the unsourced 65 PHP/L of the team case."}
+  diesel_price_high_php_per_l:
+    {value: 140, unit: PHP/L, source: BRIEF, date: null, confidence: low, status: ASSUMPTION,
+     note: "Sensitivity high case."}
+  fuel_supply_months_now:
+    {value: 2, unit: months, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
+     note: "'About 2 months' of supply with the current system."}
+  fuel_supply_months_with_inl_system:
+    {value: 3, unit: months, source: INL2025, date: 2025-01-30, confidence: medium, status: verified}
+  fuel_storage_l:
+    {value: null, unit: L, source: INL2025, date: null, confidence: low, status: missing,
+     note: "Not in the INL report. Ask NPC-SPUG. Needed for the Phase 3 fuel state; until then derive from 'about 2 months of supply' as an ASSUMPTION."}
+  resupply_interval_days:
+    {value: null, unit: days, source: INL2025, date: null, confidence: low, status: missing,
+     note: "Not in the INL report."}
+
+  fuel_storage_l_assumed:
+    {value: 52000, unit: L, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [30000, 90000], note: "Stands in for the missing fuel_storage_l. 2 months (INL) x 853 L/day, the diesel-only use of NPC's 2024 gross generation (1,124 MWh/yr x 0.277 L/kWh / 365). Was 60,000 L before the load was calibrated to NPC (1,306 MWh/yr synthetic)."}
+  resupply_interval_days_assumed:
+    {value: 30, unit: days, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [14, 60], note: "Stands in for the missing resupply_interval_days. Each delivery tops the tank up to capacity."}
+  overdue_delay_scenarios_days:
+    {value: [3, 7, 14], unit: days after the planned delivery, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [[2, 5, 10], [5, 10, 21]], note: "Possible total delays of an overdue tanker. Scenarios already passed are dropped and the weights renormalised."}
+  overdue_delay_weights:
+    {value: [0.5, 0.3, 0.2], unit: probability, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [[0.7, 0.2, 0.1], [0.2, 0.3, 0.5]], note: "Prior weights of the delay scenarios. With the 500 vs 150 PHP/kWh penalties, flexible load is shed only when P(fuel shortfall) > 0.3."}
+  overdue_resupply_days_assumed:
+    {value: 7, unit: days, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [3, 14], note: "Fallback once all delay scenarios have passed: the MPC plans as if the tanker arrives this many days from now (rolling)."}
+  php_per_usd:
+    {value: 56, unit: PHP/USD, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [50, 60], note: "Exchange rate used by the team case study. Used for the low cost case (Ocon and Bertheau 2019 in USD) and the ESMAP cross-check; base and high costs are in PHP."}
+  # ---------------- capital costs (Phase 4), in PHP ----------------
+  # Base: the NPC Sabtang bid ceiling, split into PV and battery with the Ocon and
+  # Bertheau (2019) Table 1 cost structure, scaled linearly to each size.
+  # Low: Ocon and Bertheau (2019) Table 1 as published, at php_per_usd (ASSUMPTION).
+  # High: base x cost_high_factor_assumed.
+  npc_sabtang_abc_php:
+    {value: 57697900, unit: PHP, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified,
+     note: "Approved budget for the contract (ceiling, not an award price) for >=180 kWp PV and >=120 kW / 120 kWh battery with transformers and civil works, Sabtang (Savidug) Island, Batanes. Provided by the user."}
+  npc_sabtang_pv_kwp:
+    {value: 180, unit: kWp, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified, note: "Minimum PV size in the bid."}
+  npc_sabtang_battery_kw:
+    {value: 120, unit: kW, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified, note: "Minimum battery power in the bid."}
+  npc_sabtang_battery_kwh:
+    {value: 120, unit: kWh, source: NPC_BCS_2023_0570, date: 2023-11-21, confidence: medium, status: verified, note: "Minimum battery energy in the bid."}
+  ocon2019_pv_capex_usd_per_kw:
+    {value: 1200, unit: USD/kW, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Table 1, PV capex. Transcribed by the user."}
+  ocon2019_battery_capex_usd_per_kwh:
+    {value: 260, unit: USD/kWh, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Table 1, battery energy capex. Transcribed by the user."}
+  ocon2019_battery_capex_usd_per_kw:
+    {value: 540, unit: USD/kW, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Table 1, battery power (converter) capex. Transcribed by the user."}
+  ocon2019_wacc:
+    {value: 0.0994, unit: fraction per year, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "WACC for discounted payback and LCOE. Provided by the user."}
+  ocon2019_project_life_yr:
+    {value: 20, unit: years, source: OCON2019, date: 2019, confidence: medium, status: verified, note: "Project life for discounted payback and LCOE. Provided by the user."}
+  cost_high_factor_assumed:
+    {value: 1.25, unit: multiplier on the base cost, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [1.1, 1.5], note: "High cost case: Itbayat is more remote than Sabtang, and the ABC is a 2023 ceiling."}
+  esmap2019_minigrid_capex_median_usd_per_kw:
+    {value: 3900, unit: USD/kW, source: ESMAP2019, date: 2019, confidence: low, status: verified,
+     note: "Mini-grid capex median, about 3,900 USD/kW; range 1,420 to 22,689 USD/kW. Cross-check only. Provided by the user."}
+  irena2025_pv_capex_usd_per_kw:
+    {value: 667, unit: USD/kW, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
+     note: "Utility-scale PV, global weighted-average total installed cost, 2025 (Figure S1, p. 6). Transcribed by the user from the executive summary. Utility-scale reference only."}
+  irena2025_battery_capex_usd_per_kwh:
+    {value: 140, unit: USD/kWh, source: IRENA2025, date: 2026-07, confidence: medium, status: verified,
+     note: "Four-hour utility-scale battery installed cost, 2025 (p. 3 and p. 8). Transcribed by the user from the executive summary. Utility-scale reference only."}
+  # Documented weather- or supply-driven fuel disruptions to Batanes power (news, evidence of events).
+  fuel_disruption_rate_base_per_yr:
+    {value: 0.85, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "4 weather-driven disruptions, Jan 2022 to Oct 2026: Sep 2022 (MB 3 Sep 2022), May-Jun 2023 Typhoon Betty (GMA 29 May 2023; Rappler), Aug 2023 southwest monsoon (Bombo Radyo 5 Aug 2023), Aug 2025 Itbayat food and fuel shortage (Manila Times 5 Aug 2025, [verify] not read). Rate as given by the user (4 / 4.8 y = 0.83)."}
+  fuel_disruption_rate_high_per_yr:
+    {value: 1.05, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "Base events plus the Apr 2026 national diesel shortage (GMA). Rate as given by the user (5 / 4.8 y = 1.03)."}
+  fuel_disruption_rate_low_per_yr:
+    {value: 0.4, unit: events/yr, source: NEWS_DISRUPTIONS, date: 2026-10, confidence: low, status: computed,
+     note: "All 7 documented disruptions since 2009, adding Sep 2009 (Philstar 15 Sep 2009, fuel ship in dry dock) and Jun-Oct 2011 (Philstar 12 Oct 2011, no funds for diesel). 7 / 17.8 y = 0.39."}
+  storm_rate_within_330km_per_yr:
+    {value: 4.15, unit: events/yr, source: IBTRACS, date: 2026-10, confidence: medium, status: computed,
+     note: "Storm centres at least as close as Mawar 2023 (<= 330 km), typhoon_events.csv, 49 storms in 11.8 y. Upper bound only: most storms did not interrupt fuel supply."}
+  npc_offgrid_cost_vs_tariff_ratio:
+    {value: [3, 4], unit: generation cost / tariff, source: PHILSTAR2026, date: 2026-05-29, confidence: low, status: verified,
+     note: "Off-grid generation costs NPC 3 to 4 times the tariff it charges (news report). Context only. Provided by the user."}
+  npc_itbayat_planned_pv_kwp:
+    {value: 250, unit: kWp, source: MB2021, date: 2021-05-01, confidence: low, status: verified,
+     note: "NPC planned 250 kWp of PV for Itbayat (news report). Context only; not used in the model."}
+  ocon2019_battery_life_yr:
+    {value: 15, unit: years, source: OCON2019, date: 2019, confidence: medium, status: verified,
+     note: "Battery lifetime; the battery (energy and power parts) is replaced in year 15 at the same cost case. Provided by the user."}
+  aurora_capex_php_assumed:
+    {value: 2500000, unit: PHP, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [1000000, 5000000], note: "One-off AURORA controller cost: EMS computer, metering and comms links, integration and commissioning on top of the PV and battery controls that B already needs."}
+  aurora_opex_php_per_yr_assumed:
+    {value: 500000, unit: PHP/yr, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [200000, 1000000], note: "Annual AURORA software cost: NWP data, forecast retraining, maintenance and remote support."}
+  om_frac_of_capex_per_year_assumed:
+    {value: 0.02, unit: fraction of capex per year, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.01, 0.03], note: "PV and battery O&M, used for the net payback."}
+  sweep_battery_c_rate_cap_kw_assumed:
+    {value: 375, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [250, 500], note: "Sizing sweep battery power = min(kWh x 1 per h, 375 kW). Reproduces both INL (300 kW / 300 kWh) and case (375 kW / 1,500 kWh)."}
+  co2_shadow_price_php_per_t:
+    {value: 2800, unit: PHP/t CO2, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 5600], note: "Emissions term of the MPC objective (about 50 USD/t). The Philippines has no carbon price; this is a design weight."}
+
+  # ---------------- grid ----------------
+  distribution_voltage_kv:
+    {value: 0.48, unit: kV, source: INL2025, date: 2025-01-30, confidence: medium, status: verified,
+     note: "Primary distribution 480 V; secondary 240 V via step-down transformers."}
+
+  # ---------------- system sizes (both are run; brief known problem 3) ----------------
+  pv_kwp_inl:
+    {value: 300, unit: kWp, source: INL2025, date: 2025-01-30, confidence: medium, status: verified}
+  battery_kw_inl:
+    {value: 300, unit: kW, source: INL2025, date: 2025-01-30, confidence: medium, status: verified}
+  battery_kwh_inl:
+    {value: 300, unit: kWh, source: INL2025, date: 2025-01-30, confidence: medium, status: verified}
+  pv_kwp_case:
+    {value: 500, unit: kWp, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     note: "Illustrative size from the team case study."}
+  battery_kwh_case:
+    {value: 1500, unit: kWh, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION}
+  battery_kw_case:
+    {value: 375, unit: kW, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [300, 750], note: "Battery power of the team case study (0.25 C)."}
+  pv_kwp_npc:
+    {value: 180, unit: kWp, source: NPC_MEP2025, date: 2025, confidence: high, status: verified,
+     note: "NPC's own diesel-solar hybridization plan for Itbayat DPP: 180 kWp PV with 120 kWh BESS, budget PHP 51,949,600 (Annex M, pre-implementation); RE compliance from 2028 with 248 MWh/yr of RECs (Annex P). Annex R shows it in 2026."}
+  battery_kwh_npc:
+    {value: 120, unit: kWh, source: NPC_MEP2025, date: 2025, confidence: high, status: verified}
+  battery_kw_npc:
+    {value: 120, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [60, 120], note: "Power rating not stated for Itbayat; the Sabtang bid of the same size asks for at least 120 kW / 120 kWh (NPC_BCS_2023_0570)."}
+  capex_npc_hybrid_php:
+    {value: 51949600, unit: PHP, source: NPC_MEP2025, date: 2025, confidence: high, status: verified,
+     note: "Budget requirement for the Itbayat 180 kWp / 120 kWh hybridization, MEP 2025-2029 Annex M."}
+  cest_reserve_soc:
+    {value: 0.30, unit: fraction, source: BRIEF, date: null, confidence: medium, status: ASSUMPTION,
+     note: "CEST definition: SOC reserve floor. Design choice, not a site fact."}
+
+  # ---------------- battery and controller settings (digital twin, Phase 3) ----------------
+  # Design and planning values, not site facts. All ASSUMPTION with a range for Phase 4.
+  battery_eta_oneway:
+    {value: 0.95, unit: fraction, source: ASSUMPTION, date: null, confidence: medium, status: ASSUMPTION,
+     range: [0.92, 0.97], note: "Charge and discharge efficiency each (round trip about 0.90)."}
+  battery_soc_min:
+    {value: 0.20, unit: fraction, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.10, 0.30], note: "Hard lower SOC limit (team case value). The CEST reserve (0.30) sits above it."}
+  battery_soc_max:
+    {value: 0.95, unit: fraction, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.90, 1.00]}
+  battery_soc_initial:
+    {value: 0.60, unit: fraction, source: TEAM_CASE, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.30, 0.95], note: "SOC at the start of a run."}
+  battery_degradation_php_per_kwh:
+    {value: 4.0, unit: PHP/kWh of charge or discharge, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [2.0, 8.0], note: "450 USD/kWh replacement (team case) / (4,000 cycles x 0.8 depth x 2 directions) x 56 PHP/USD = 3.9 PHP/kWh."}
+  voll_flex_php_per_kwh:
+    {value: 150, unit: PHP/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [50, 500], note: "Penalty for shedding flexible load. Above the diesel cost (about 30 PHP/kWh) so shedding is a last resort."}
+  risk_penalty_php_per_kwh:
+    {value: 50, unit: PHP/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 200], note: "Weight on the expected critical energy shortfall if diesel stopped (Monte Carlo), averaged over the horizon."}
+  risk_window_h:
+    {value: 24, unit: h, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [12, 48], note: "Window over which R(t) counts a critical shortfall with diesel off."}
+  fuel_scarcity_penalty_php_per_kwh:
+    {value: 500, unit: PHP/kWh, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [200, 2000], note: "Penalty on critical energy that fuel plus battery at the horizon end cannot cover until the expected delivery. Above voll_flex so flexible load is shed first."}
+
+  # ---------------- model v2 (Phase 4b): realism fixes ----------------
+  flex_feeder_blocks:
+    {value: 4, unit: blocks, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [2, 8], note: "Flexible (household) load is cut in whole feeder blocks by line staff, not by the exact kW. Model v2; model v1 (Phase 4) shed continuously."}
+  crit_noise_sigma:
+    {value: 0.12, unit: fraction, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.05, 0.25], note: "Hour-to-hour variability of critical demand around its synthetic schedule (AR(1) multiplicative, stationary SD). Model v1 had a fixed schedule."}
+  crit_noise_rho:
+    {value: 0.9, unit: "-", source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.7, 0.97], note: "AR(1) coefficient of the critical-demand variability (hourly)."}
+  fuel_reserve_l_assumed:
+    {value: 250, unit: L, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0, 500], note: "Fuel AURORA's plan tries not to go below (about 12 h of one unit at minimum load), so a generator can still start. Fixes the 12.7 L near-miss of model v1."}
+  operator_plan_delay_days_assumed:
+    {value: 14, unit: d, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [7, 21], note: "Rationing operator (controller O): once the tanker is overdue, it rations fuel so the tank lasts until this many days after the planned delivery (the longest delay scenario), as NPC and BATANELCO did with curtailment in 2022 and 2023."}
+  operator_sfc_loading_assumed:
+    {value: 0.7, unit: fraction, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION,
+     range: [0.5, 0.9], note: "Average generator loading the operator assumes when converting energy to litres."}
+
+  # ---------------- critical loads (synthetic load model) ----------------
+  # No public measurements. Ratings are planning assumptions; Phase 4 runs +-50 %.
+  crit_clinic_kw:
+    {value: 15, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [7.5, 22.5]}
+  crit_water_kw:
+    {value: 20, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [10, 30]}
+  crit_telecom_kw:
+    {value: 5, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [2.5, 7.5]}
+  crit_municipal_kw:
+    {value: 10, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [5, 15]}
+  crit_cold_storage_kw:
+    {value: 15, unit: kW, source: ASSUMPTION, date: null, confidence: low, status: ASSUMPTION, range: [7.5, 22.5]}
+
+# Shape parameters of the synthetic load (all ASSUMPTION, labelled synthetic).
+load_model:
+  status: ASSUMPTION
+  reference_year: 2024          # INL gives no year for the ~250 kW peak; 2024 is an ASSUMPTION (report dated Jan 2025)
+  # Relative hourly shape, local time 00..23. Island village with an evening lighting /
+  # cooking peak and a lower midday commercial plateau.
+  hourly_shape: [0.52, 0.48, 0.46, 0.45, 0.46, 0.52, 0.62, 0.68, 0.70, 0.71, 0.72, 0.73,
+                 0.72, 0.71, 0.70, 0.70, 0.73, 0.82, 0.96, 1.00, 0.97, 0.88, 0.74, 0.60]
+  seasonal_amplitude: 0.08      # +-8 % around the mean, peak at seasonal_peak_doy
+  seasonal_peak_doy: 166        # mid-June, inside May-July
+  temp_coeff_per_c: 0.015       # +1.5 % per degC of daily-mean temperature above its monthly normal
+  sunday_factor: 0.95
+  noise_sigma: 0.03             # AR(1) multiplicative noise
+  noise_rho: 0.8
+  seed: 2026
+  # Hourly factors for critical loads (local time); 1.0 = rating.
+  critical_profiles:
+    clinic:       {kw: crit_clinic_kw,       day: 1.0, night: 0.6, day_hours: [7, 18]}
+    water:        {kw: crit_water_kw,        day: 1.0, night: 0.3, day_hours: [5, 19]}
+    telecom:      {kw: crit_telecom_kw,      day: 1.0, night: 1.0, day_hours: [0, 24]}
+    municipal:    {kw: crit_municipal_kw,    day: 1.0, night: 0.3, day_hours: [8, 17]}
+    cold_storage: {kw: crit_cold_storage_kw, day: 1.0, night: 0.8, day_hours: [9, 18]}
+
+# NPC-SPUG supply and demand profile of Itbayat DPP (source NPC_MEP2025, Annex R, p. 114 of the PDF).
+# 2019-2023 historical, 2024-2029 NPC forecast (as labelled in the document).
+# The synthetic load is calibrated to the annual peak and gross generation of each year.
+npc_itbayat_dpp:
+  source: NPC_MEP2025
+  years:          [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029]
+  kind:           [hist, hist, hist, hist, hist, fcst, fcst, fcst, fcst, fcst, fcst]
+  peak_kw:        [175, 201, 222, 240, 264, 290, 319, 351, 387, 425, 468]
+  gross_gen_mwh:  [737.952, 907.900, 944.219, 1035.680, 1067.943, 1124.177, 1186.953, 1249.729, 1312.505, 1375.281, 1438.057]
+  sales_mwh:      [669.699, 905.167, 932.500, 1020.828, 1045.195, 1104.607, 1167.383, 1230.159, 1292.935, 1355.711, 1418.487]
+  rated_kw:       [686, 686, 760, 850, 850, 850, 850, 850, 850, 850, 850]
+  dependable_kw:  [480, 390, 580, 740, 740, 740, 740, 740, 740, 740, 740]

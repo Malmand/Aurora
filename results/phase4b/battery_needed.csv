@@ -1,0 +1,4 @@
+controller,name,battery_kwh_for_0h,worst_outage_h_at_chosen
+B,"Solar + battery, simple rule",,102
+O,"Solar + battery, rationing operator",500.0,0
+C,AURORA,500.0,0

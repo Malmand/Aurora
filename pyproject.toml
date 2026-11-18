@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aurora"
+version = "0.1.0"
+description = "AURORA: forecast-driven, resilience-aware energy management for remote diesel-backed solar microgrids (Itbayat case study)"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "pandas>=2.0",
+  "pyarrow>=12",
+  "pyyaml>=6",
+  "requests>=2.28",
+  "matplotlib>=3.7",
+  "pvlib>=0.10",
+  "scipy>=1.10",
+  "pulp>=2.8,<4",      # PuLP 4 changed the modelling API
+  "highspy>=1.7",      # HiGHS MILP solver used through PuLP
+  "lightgbm>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+download = ["cdsapi>=0.7", "xarray>=2023.1", "netCDF4>=1.6"]
+
+[tool.setuptools.packages.find]
+include = ["aurora*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "B", "UP", "SIM", "N", "C4", "RET", "ARG", "PIE"]
+# Upper-case names for matrices and physical quantities (P, Q, M, K) follow the maths in docs/twin.md;
+# dict(...) calls are kept where they read like keyword arguments.
+# Controllers share one step() signature, so some ignore arguments they do not need (ARG002);
+# a named result before return is kept where it documents the value (RET504).
+ignore = ["N806", "N803", "N812", "C408", "B905", "SIM108", "ARG002", "RET504"]
+
+[tool.ruff.lint.per-file-ignores]
+# These modules write markdown tables; one table row per source line is easier to check than split strings.
+"aurora/forecast/report.py" = ["E501"]
+"aurora/data/validate.py" = ["E501"]

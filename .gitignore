@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+data/raw/
+.env
+*.egg-info/
+.pytest_cache/
+# download cache of scripts/download_itbayat.py (raw_small/ is the committed input set)
+data/itbayat/raw/
+
+# Phase 2 forecast cache and fitted models (rebuilt by python -m aurora.forecast.build)
+data/itbayat/forecast/cache/
+data/itbayat/forecast/models/
+
+# outputs rebuilt locally, not kept in git
+results/phase4/
+results/phase5/
+results/twin/
+results/phase4b_smoke/
+figures/final/
