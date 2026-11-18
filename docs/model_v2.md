@@ -29,7 +29,7 @@ python -m aurora.experiments.phase4b tables                      # results/phase
 python -m aurora.plotting.slides impact                  # figures/slides/impact.png
 ```
 
-Both stages resume where they stopped. Phase 4 (model v1) results stay in `results/phase4/` unchanged.
+Both stages resume where they stopped. Model v1 outputs are not kept in the repository; rerun `python -m aurora.experiments.phase4` to rebuild them.
 
 ## Limits that remain
 

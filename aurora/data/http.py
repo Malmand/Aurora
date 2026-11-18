@@ -1,6 +1,6 @@
 """Small download helper with retries and an explicit 'blocked' error.
 
-CLAUDE.md: if a download is blocked, stop and report. Never substitute data.
+Project rule: if a download is blocked, stop and report. Never substitute data.
 """
 
 from __future__ import annotations

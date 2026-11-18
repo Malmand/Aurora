@@ -1,8 +1,0 @@
-item,usd_per_kw,reference,unit_costs_php
-"Sabtang bid (ABC) per kWp of PV, all-in",5723.998015873016,"ESMAP 2019 mini-grid capex median ~3,900 USD/kW (range 1,420 to 22,689)","base: PV 221,915/kWp, battery 48,082/kWh + 99,862/kW; low: 67,200, 14,560, 30,240; high = 1.25 x base"
-"inl system, base case, per kWp of PV",6604.6130952380945,"ESMAP 2019 mini-grid capex median ~3,900 USD/kW",
-"case system, base case, per kWp of PV",7876.001116071428,"ESMAP 2019 mini-grid capex median ~3,900 USD/kW",
-base PV only,3962.7678571428573,IRENA 2026 utility-scale PV 667 USD/kW (2025),
-base battery energy (USD/kWh),858.5997023809524,IRENA 2026 utility-scale 4 h battery 140 USD/kWh (2025),
-"base battery at 1 h duration, energy + power (USD/kWh)",2641.845238095238,IRENA 2026 4 h battery 140 USD/kWh,
-low (Ocon and Bertheau 2019) PV,1200.0,Table 1,

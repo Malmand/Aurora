@@ -1,7 +1,7 @@
 # Digital twin with MILP rolling-horizon MPC (Phase 3)
 
 Code: [`aurora/twin/`](../aurora/twin/). Tests: [`tests/test_twin.py`](../tests/test_twin.py).
-Demonstration run: `python -m aurora.twin.run --demo` writes [`results/twin/`](../results/twin/).
+Demonstration run: `python -m aurora.twin.run --demo` writes `results/twin/` (rebuilt locally, not kept in git).
 
 The twin simulates the Itbayat grid hour by hour: PV, battery, diesel units, fuel tank and the critical and flexible loads. It runs three controllers on the same inputs and scores them on fuel, critical outages and Community Energy Survival Time (CEST).
 
@@ -19,7 +19,7 @@ These parts of `aurora-gsc/aurora-digital-twin` (Mohamed's code) were ported and
 
 Katharina's `forecasting/` was not used.
 
-These known problems from `docs/CLOUD_BRIEF.md` were fixed:
+These known problems of the first team prototype were fixed:
 
 | Problem in the team case study | Now |
 |---|---|
@@ -121,7 +121,7 @@ CEST counts the hours that critical load can run on the battery plus forecast P1
 | 14 d | case | B | 2 | 70 | 356 | 8,088 | 0.0 | 26.6 | 0.57 | 0 |
 | 14 d | case | C | 0 | 0 | 0 | 8,042 | 72.0 | 86.6 | 0.07 | 6 |
 
-Source: `results/twin/demo_mawar2023_kpis.csv`. The hourly runs are in `results/twin/demo_mawar2023_delay{7,14}d_{inl,case}/run_{A,B,C}.csv`. A has no PV or battery, so its row is the same for both sizings.
+Source: `results/twin/demo_mawar2023_kpis.csv` after `python -m aurora.twin.run --demo`. The hourly runs are in `results/twin/demo_mawar2023_delay{7,14}d_{inl,case}/run_{A,B,C}.csv`. A has no PV or battery, so its row is the same for both sizings.
 
 What this shows, and what it does not:
 
@@ -144,7 +144,7 @@ What this shows, and what it does not:
 | case | issue | 36.5 | 0.0 | 0.0 | 0 | 0 | 4,483 | 72.0 | 87.9 | 0.07 | 2,505 |
 | case | fixed 48 h | 48.0 | 95.8 | 11.5 | 0 | 0 | 4,454 | 72.0 | 90.5 | 0.05 | 2,505 |
 
-Source: `results/twin/horizon_compare_mawar2023_kpis.csv`; hourly runs in `results/twin/horizon_compare_mawar2023_{issue,fixed}_{inl,case}/run_C.csv`.
+Source: `results/twin/horizon_compare_mawar2023_kpis.csv` after `python -m aurora.twin.run --horizon-compare`; hourly runs in `results/twin/horizon_compare_mawar2023_{issue,fixed}_{inl,case}/run_C.csv`.
 
 - With the fixed horizon, 23 of every 24 plans end with fallback hours (11.5 h on average). With the issue-aligned horizon none do.
 - Neither setting loses critical load.

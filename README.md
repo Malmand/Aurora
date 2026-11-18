@@ -155,4 +155,4 @@ Every assumption has a sensitivity range in [data/itbayat/SOURCES.md](data/itbay
 
 ---
 
-<sub>Model v1 results (`results/phase4/`, `figures/final/`, older docs marked "superseded") are kept for the record. Team repository: [aurora-gsc/aurora-digital-twin](https://github.com/aurora-gsc/aurora-digital-twin).</sub>
+<sub>Team repository: [aurora-gsc/aurora-digital-twin](https://github.com/aurora-gsc/aurora-digital-twin).</sub>

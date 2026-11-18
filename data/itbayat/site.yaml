@@ -2,7 +2,7 @@
 # Every entry: value, unit, source (key in SOURCES.md), date (of the information),
 # confidence (high / medium / low), status:
 #   verified          checked in this repo against the primary document
-#   brief_unverified  taken from docs/CLOUD_BRIEF.md, which cites the primary source;
+#   brief_unverified  taken from the team's project brief, which cites the primary source;
 #                     not yet checked against the document (host blocked from the
 #                     cloud session on 2026-11-01). Check before the deck.
 #   computed          derived by a script in this repo from a downloaded dataset

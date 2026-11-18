@@ -1,4 +1,4 @@
-"""Journal figure style from CLAUDE.md: L-frame, outward ticks, no grid, Okabe-Ito."""
+"""Journal figure style: L-frame, outward ticks, no grid, Okabe-Ito."""
 
 from __future__ import annotations
 

@@ -1,5 +1,0 @@
-forecast,flex_shed_kwh,diesel_l,crit_outage_h,cest_median_h,first_shed_local,shed_hours,tank_min_l,shed_by_day_kwh
-solar:persistence+demand:phase2,2589.3,6366.0,0,5.3,2023-05-28 08:00,54,1394.0,0 3 0 0 443 396 585 1161 0 0 0
-solar:phase2+demand:persistence,2221.8,6419.0,0,4.8,2023-06-01 01:00,46,1311.0,0 0 0 0 0 506 489 1227 0 0 0
-persistence,2833.9,6349.0,0,4.9,2023-05-31 01:00,57,1399.0,0 0 0 0 638 495 555 1146 0 0 0
-phase2,1718.2,6498.0,0,5.3,2023-06-01 01:00,37,1206.0,0 0 0 0 0 363 241 1114 0 0 0

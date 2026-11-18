@@ -1,4 +1,4 @@
-"""Phase 4 tables from results/phase4/jobs/*.json and hourly/*.csv.gz.
+"""Phase 4 (model v1) tables from results/phase4/jobs/*.json and hourly/*.csv.gz (outputs not kept in git).
 
 Writes results/phase4/{storms,vof,decomposition,decomp_forecast_bias,year,sweep,
 sweep_marginal_cest,recommended,sensitivity,rec_storms,costs}.csv, tables.md and

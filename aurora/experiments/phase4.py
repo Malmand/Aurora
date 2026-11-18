@@ -14,6 +14,7 @@ Every job writes results/phase4/jobs/<id>.json (one KPI row per controller) and
 is skipped if that file exists, so a stopped run resumes. Hourly runs of the
 storm and full-year jobs go to results/phase4/hourly/<id>_<ctl>.csv.gz.
 `tables` writes the CSV tables in results/phase4/ and results/phase4/tables.md.
+Model v1 outputs are not kept in git; the current results are model v2 (phase4b.py).
 
 Settings for every run: MPC horizon aligned to the newest forecast issue (25 to
 48 h), 32 Monte Carlo scenarios (in the MILP risk term and for R(t)), except the

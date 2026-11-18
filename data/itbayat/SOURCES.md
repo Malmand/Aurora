@@ -8,7 +8,7 @@ Update 2 Nov 2026: the INL report, DOE off-grid list, PhilAtlas profile, PAGASA 
 
 ### Original note (1 Nov 2026)
 
-The primary documents (INL report, DOE off-grid list, PhilAtlas, PAGASA normals, the three journal papers and the Castro et al. dataset) could not be opened from the cloud session: the network policy refused `www.osti.gov`, `legacy.doe.gov.ph`, `www.philatlas.com`, `pubfiles.pagasa.dost.gov.ph`, `www.mdpi.com`, `www.sdewes.org`, `linkinghub.elsevier.com` and `data.mendeley.com`. The bibliographic records below were checked on Crossref. The site values marked `brief_unverified` are the figures quoted in `docs/CLOUD_BRIEF.md` and still have to be checked page by page against the documents. Values marked `missing` are null in `site.yaml`, and `aurora.data.site.value()` refuses to return them.
+The primary documents (INL report, DOE off-grid list, PhilAtlas, PAGASA normals, the three journal papers and the Castro et al. dataset) could not be opened from the cloud session: the network policy refused `www.osti.gov`, `legacy.doe.gov.ph`, `www.philatlas.com`, `pubfiles.pagasa.dost.gov.ph`, `www.mdpi.com`, `www.sdewes.org`, `linkinghub.elsevier.com` and `data.mendeley.com`. The bibliographic records below were checked on Crossref. The site values marked `brief_unverified` are the figures quoted in the team's project brief (BRIEF below) and still have to be checked page by page against the documents. Values marked `missing` are null in `site.yaml`, and `aurora.data.site.value()` refuses to return them.
 
 To close the gap, open each PDF, fill the page number into the `note` field, change `status` to `verified`, and fill in the `missing` rows (unit ratings, fuel tank volume, resupply interval, annual energy, distribution voltage).
 
@@ -59,7 +59,7 @@ Site documents:
 
 Project documents:
 
-- **BRIEF** `docs/CLOUD_BRIEF.md` in this repo (project brief; collects the figures from the team update).
+- **BRIEF** the team's internal project brief (not published; collects the figures from the team update).
 - **TEAM_CASE** `aurora-gsc/aurora-digital-twin`, branch `digital-twin-case-study`, `case_batanes.py` (illustrative values, no external source).
 - **ASSUMPTION** No source. See the sensitivity range in the table.
 

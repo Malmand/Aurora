@@ -9,6 +9,7 @@ perfect, persistence (twin baseline), phase2 (the Phase 2 backtest read directly
 from data/itbayat/forecast/; phase2:nwp and phase2:persistence give the raw NWP
 mean and Phase 2 persistence for value-of-forecasting runs), csv (the Phase 2
 sample CSVs in data/itbayat/forecast/issues/) or csv:<folder> (other forecast files).
+Outputs go to results/twin/, which is rebuilt locally and not kept in git.
 --delay-days delays the first planned delivery after the start (stress test).
 --horizon-mode issue (default) sets the MPC horizon at each step to the end of
 the newest issued forecast (25 to 48 h for the daily 48 h issues); fixed keeps
