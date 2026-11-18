@@ -399,10 +399,10 @@ def system_diagram(size=(740, 792)):
     ax.plot([2.75, 2.75], [5.53, 1.77], color=BLUE, lw=2, ls=(0, (3, 2)))
     for yy in (3.07, 1.77):
         arrow((2.75, yy + 0.0), (2.53, yy), c=BLUE, lw=1.8)
-    ax.plot([7.32, 7.32], [5.53, 1.97], color=BLUE, lw=2, ls=(0, (3, 2)))
-    arrow((7.33, 1.97), (7.22, 1.97), c=BLUE, lw=1.8)
-    _halo(ax.text(2.85, 5.3, "sets battery, generators", fontsize=14, color=BLUE, va="center"))
-    _halo(ax.text(7.22, 3.07, "cuts homes only\nif fuel runs short", fontsize=14, color=BLUE, va="center", ha="right"))
+    ax.plot([4.48, 4.48], [5.53, 1.70], color=BLUE, lw=2, ls=(0, (3, 2)))
+    arrow((4.48, 1.70), (4.73, 1.70), c=BLUE, lw=1.8)
+    _halo(ax.text(2.85, 5.22, "sets battery,\ngenerators", fontsize=14, color=BLUE, va="center"))
+    _halo(ax.text(4.85, 3.07, "cuts homes only\nif fuel runs short", fontsize=14, color=BLUE, va="center", ha="left"))
     _save(fig, "system_diagram")
 
 
