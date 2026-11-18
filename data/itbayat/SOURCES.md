@@ -194,3 +194,18 @@ So the 300 km flag alone misses both documented disruptions. Sea state at 300 to
 | crit_cold_storage_kw | 15 | kW | ASSUMPTION |  | low | ASSUMPTION | Sensitivity range [7.5, 22.5]. |
 
 <!-- END VALUE TABLE -->
+
+## Event evidence read on 18 Nov 2026 (news; evidence of events only, used on the deck's problem slides)
+
+Each item was opened and read; the numbers quoted are as reported.
+
+- Philstar, 15 Sep 2009, "Batanes power supply to last until month's end": M/V Saver (only authorised fuel ship) in dry dock; Batan cut to 16 h then 12 h; Sabtang and Itbayat on 6 h of power. https://philstar.com/nation/2009/09/15/504932/batanes-power-supply-last-until-months-end
+- Philstar, 19 Jul 2011, "Batanes calamity state over fuel lack": state of calamity; 24,000 L of a 114,000 L shipment for Sabtang and Itbayat. https://www.philstar.com/headlines/2011/07/19/707283/batanes-calamity-state-over-fuel-lack
+- Philstar, 27 Aug 2011, "Batanes fuel stock to last for only 12 days": 36,000 L left; main plant 10 h a day; Sabtang and Itbayat 6 h a day. https://philstar.com/nation/2011/08/27/720484/batanes-fuel-stock-last-only-12-days
+- Manila Bulletin, 3 Sep 2022, "'Power curtailment' implemented in Batanes due to delay in fuel supply": power 08:00 to midnight (16 h); congested port in Bataan and Typhoon Henry. https://mb.com.ph/2022/09/03/power-curtailment-implemented-in-batanes-due-to-delay-in-fuel-supply
+- GMA News, 29 May 2023: NPC motor tanker stranded in Bolinao, Pangasinan, by Typhoon Betty; governor asks for bigger tanks and more gensets. https://www.gmanetwork.com/news/topstories/regions/871463/batanes-hit-with-power-outage-as-typhoon-betty-causes-fuel-shortage/story/
+- Rappler, 29 May 2023: rotational 8 h interruptions from 1 Jun 2023. https://www.rappler.com/nation/luzon/batanes-rotational-blackouts-typhoon-betty-affects-fuel-supply/
+- Inquirer, 30 Oct 2024: Itbayat DPP shut down on 29 Oct 2024 ahead of Typhoon Leon. https://business.inquirer.net/487474/power-plants-in-batanes-shut-down-ahead-of-leon
+- GMA Regional TV, 4 Aug 2025: two weeks of rain and rough seas; Itbayat's rice, corn and petroleum stocks almost depleted. Replaces the unread Manila Times 5 Aug 2025 item. https://www.gmanetwork.com/regionaltv/news/109491/food-fuel-supply-in-itbayat-running-low-due-to-bad-weather/story
+- Daily Tribune, 23 Sep 2025: BATANELCO without power after Super Typhoon Nando (Ragasa); Basco DPP equipment damage. https://tribune.net.ph/2025/09/23/three-cooperatives-remain-without-power-after-nando
+- Khaleej Times, 3 Apr 2026: national energy emergency; diesel shortages in remote towns (no Batanes mention). https://www.khaleejtimes.com/world/asia/philippine-towns-declare-state-of-calamity-us-israel-iran-war-fuels-energy-crisis
