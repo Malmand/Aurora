@@ -68,7 +68,7 @@ def _fig(size, **kw):
 def _save(fig, name):
     OUT.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "pdf"):
-        fig.savefig(OUT / f"{name}.{ext}", facecolor="white")
+        fig.savefig(OUT / f"{name}.{ext}", facecolor="white", metadata={"CreationDate": None} if ext == "pdf" else None)
     import matplotlib.pyplot as plt
     plt.close(fig)
 

@@ -26,7 +26,7 @@ pip install -e ".[dev]"
 python -m aurora.experiments.phase4b run --stage A --workers 8   # sweep on 3 storms + INL-size storms
 python -m aurora.experiments.phase4b run --stage B --workers 8   # chosen size: storms, 2 years, stress, forecast value
 python -m aurora.experiments.phase4b tables                      # results/phase4b/tables.md, impact.json
-python -c "from aurora.plotting import deck; deck.impact_v2()"   # figures/deck/impact_v2_two_outcomes.png
+python -m aurora.plotting.slides impact                  # figures/slides/impact.png
 ```
 
 Both stages resume where they stopped. Phase 4 (model v1) results stay in `results/phase4/` unchanged.
