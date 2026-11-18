@@ -176,3 +176,16 @@ The synthetic critical load is a fixed daily schedule (site.yaml `critical_profi
 - Anderson, K. S., Hansen, C. W., Holmgren, W. F., et al. (2023). pvlib python: 2023 project update. J. Open Source Softw. 8(92), 5994. doi:10.21105/joss.05994
 - Knapp, K. R., et al. (2010). The International Best Track Archive for Climate Stewardship (IBTrACS). Bull. Am. Meteorol. Soc. 91, 363-376. doi:10.1175/2009BAMS2755.1
 - Tsai, C.-T., et al. (2020). Energies 13(1), 8 (see data/itbayat/SOURCES.md).
+
+## Fairer baseline: raw NWP after a simple bias correction (added 18 Nov 2026)
+
+`python -m aurora.forecast.mos_check`. A linear correction (MOS) fitted month by month on earlier data only, same sample as above. The strongest version is the 3-model NWP mean corrected in clear-sky index.
+
+| Lead day | AURORA P50 | ECMWF raw | ECMWF corrected | NWP mean corrected (best) | AURORA skill vs best (5-95 %) |
+|---|---|---|---|---|---|
+| 1 | 80.4 | 90.6 | 89.3 | 85.4 | 5.9 % (3.6 to 8.4) |
+| 2 | 92.4 | 101.1 | 99.0 | 93.2 | 0.8 % (-2.1 to 4.1) |
+
+RMSE in W/m². Verdict: most of the gain over the raw models at lead day 2 is bias correction; at lead day 1 AURORA keeps a clear 6 % edge. The main added value beyond a simple correction is the calibrated range (P10-P90 coverage 81.7 %).
+
+Value to the island: with AURORA's forecast the planner cut homes for 138 h on average in the three typhoons, against 146 h with the raw NWP forecast and 134 h with a perfect forecast (`results/phase4b/value_of_forecast.csv`); the clinic was dark 0 h in all three cases.

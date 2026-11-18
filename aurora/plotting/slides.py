@@ -479,13 +479,14 @@ def replay(size=(1000, 600), job="rec_mawar2023_pv300_bat1500_d14"):
 
 
 RMSE = {"Yesterday's sun": (150.0, 174.3), "GFS (USA)": (151.3, 162.3), "ICON (Germany)": (118.7, 126.7),
-        "Mean of 3 models": (95.2, 103.8), "ECMWF (Europe)": (90.8, 101.3), "AURORA": (80.6, 92.6)}
+        "Mean of 3 (raw)": (95.2, 103.8), "ECMWF raw (best)": (90.8, 101.3),
+        "Mean of 3, fixed bias": (85.4, 93.2), "AURORA": (80.6, 92.6)}
 
 
 def forecast_rmse(size=SIDE):
     """docs/validation_forecast.md: RMSE, daylight hours, satellite reference, Nov 2024 to Oct 2026."""
     fig, ax = _fig(size)
-    fig.subplots_adjust(0.22, 0.14, 0.97, 0.97)
+    fig.subplots_adjust(0.25, 0.14, 0.97, 0.97)
     labs = list(RMSE)
     y = np.arange(len(labs))
     w = 0.4
