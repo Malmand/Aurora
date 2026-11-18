@@ -286,15 +286,14 @@ def demand_growth(size=SIDE):
     ax.bar(x[hist], t["peak_kw"][hist], 0.66, color=BLUE, label="Peak demand, NPC records")
     ax.bar(x[~hist], t["peak_kw"][~hist], 0.66, color="white", edgecolor=BLUE, hatch="//", lw=1.4,
            label="Peak demand, NPC forecast")
-    ax.plot(x, t["dependable_kw"], color=INK, lw=2.2, ls="--", marker="o", ms=7, label="Dependable diesel capacity")
     for xi, v, hh in zip(x, t["peak_kw"], hist):
         ax.text(xi, v + 12, f"{v}", ha="center", fontsize=15, color=BLUE, fontweight="bold" if hh else "normal")
     ax.set_xticks(x, [f"'{str(v)[2:]}" for v in t["years"]])
     ax.set_ylabel("Power (kW)")
-    ax.set_ylim(0, 1060)
-    ax.legend(loc="upper left", fontsize=15, ncol=1)
+    ax.set_ylim(0, 540)
+    ax.legend(loc="upper left", fontsize=16, ncol=1)
     g = t["peak_kw"][4] / t["peak_kw"][0] - 1
-    ax.annotate(f"+{g * 100:.0f} % in four years", xy=(4.3, 285), xytext=(4.9, 590), fontsize=19, fontweight="bold",
+    ax.annotate(f"+{g * 100:.0f} % in four years", xy=(3.62, 230), xytext=(0.2, 390), fontsize=19, fontweight="bold",
                 color=BLUE, arrowprops=dict(arrowstyle="->", color=BLUE, lw=1.8))
     _save(fig, "demand_growth")
 
@@ -503,7 +502,7 @@ def forecast_rmse(size=SIDE):
             lb.set_fontweight("bold")
             lb.set_color(BLUE)
     ax.tick_params(axis="y", length=0)
-    ax.set_xlabel("Forecast error, RMSE (W/m²)")
+    ax.set_xlabel("Forecast error, RMSE (W/m²): lower is better")
     ax.set_xlim(0, 190)
     from matplotlib.patches import Patch
     ax.legend(handles=[Patch(fc=GREY, label="tomorrow"), Patch(fc="#D3D8DF", hatch="//", ec="white", label="day after")],
@@ -770,21 +769,33 @@ def breakeven(size=(1000, 520)):
 
 
 def sizing(size=SIDE):
+    """Why 300 kWp / 1,500 kWh: the cheapest size where AURORA keeps the clinic on AND keeps a
+    Survival Clock of at least 24 h (median, worst of the three storms). Rule from phase4b.recommended."""
+    from ..experiments import phase4 as P4
     s = pd.read_csv(P4B / "sweep.csv")
-    s = s[s["controller"] == "C"]
-    g = s.groupby(["pv_kwp", "bat_kwh"])[["flex_shed_h", "crit_outage_h"]].mean().reset_index()
+    c = s[s["controller"] == "C"]
+    g = c.groupby(["pv_kwp", "bat_kwh", "bat_kw"]).agg(clock=("cest_median_h", "min"), dark=("crit_outage_h", "max")).reset_index()
+    g["capex"] = [P4.capex_php(a, b, k) / 1e6 for a, b, k in zip(g.pv_kwp, g.bat_kwh, g.bat_kw)]
     pv, bat = sorted(g["pv_kwp"].unique()), sorted(g["bat_kwh"].unique())
-    M = g.pivot(index="pv_kwp", columns="bat_kwh", values="flex_shed_h").loc[pv, bat].to_numpy()
+    piv = lambda col: g.pivot(index="pv_kwp", columns="bat_kwh", values=col).loc[pv, bat].to_numpy()  # noqa: E731
+    clock, capex = piv("clock"), piv("capex")
+    ok = clock >= 24
     fig, ax = _fig(size)
-    fig.subplots_adjust(0.11, 0.15, 0.93, 0.96)
-    im = ax.imshow(M, cmap="viridis_r", aspect="auto", origin="lower", vmin=0, vmax=170)
+    fig.subplots_adjust(0.1, 0.15, 0.99, 0.9)
+    from matplotlib.colors import ListedColormap
+    ax.imshow(ok.astype(float), cmap=ListedColormap(["#F1F3F6", "#D7E9F5"]), aspect="auto", origin="lower", vmin=0, vmax=1)
     for i in range(len(pv)):
         for j in range(len(bat)):
-            ax.text(j, i, f"{M[i, j]:.0f} h", ha="center", va="center", fontsize=17,
-                    fontweight="bold" if (pv[i], bat[j]) == (300.0, 1500.0) else "normal",
-                    color="white" if M[i, j] > 75 else INK)
+            ax.text(j, i + 0.15, f"{clock[i, j]:.0f} h", ha="center", va="center", fontsize=19,
+                    fontweight="bold", color=BLUE if ok[i, j] else MUTE)
+            ax.text(j, i - 0.22, f"{capex[i, j]:.0f} M", ha="center", va="center", fontsize=14, color=SOFT)
+    for i in range(len(pv) + 1):
+        ax.axhline(i - 0.5, color="white", lw=3)
+    for j in range(len(bat) + 1):
+        ax.axvline(j - 0.5, color="white", lw=3)
     i0, j0 = pv.index(300.0), bat.index(1500.0)
-    ax.add_patch(__import__("matplotlib").patches.Rectangle((j0 - 0.5, i0 - 0.5), 1, 1, fill=False, ec=VERM, lw=4))
+    import matplotlib.patches as mp
+    ax.add_patch(mp.Rectangle((j0 - 0.47, i0 - 0.47), 0.94, 0.94, fill=False, ec=VERM, lw=4, zorder=5))
     ax.set_xticks(range(len(bat)), [f"{b:,.0f}" for b in bat])
     ax.set_yticks(range(len(pv)), [f"{p:.0f}" for p in pv])
     ax.tick_params(length=0)
@@ -792,10 +803,11 @@ def sizing(size=SIDE):
         s_.set_visible(False)
     ax.set_xlabel("Battery (kWh)")
     ax.set_ylabel("Solar (kWp)")
-    cb = fig.colorbar(im, ax=ax, pad=0.02, fraction=0.04)
-    cb.set_label("Hours homes are cut off (h)")
-    cb.outline.set_visible(False)
+    ax.legend(handles=[mp.Patch(fc="#D7E9F5", label="meets the rule: 24 h or more"), mp.Patch(fc="#F1F3F6", label="below 24 h"),
+                       mp.Patch(fc="white", ec=VERM, lw=3, label="cheapest that meets it")],
+              ncol=3, loc="lower left", bbox_to_anchor=(0, 1.0), fontsize=15, handlelength=1.4)
     _save(fig, "sizing")
+    return int(ok.sum())
 
 
 FIGS = {"cover": cover_map, "map": map_where, "storms": storms, "crisis": crisis_hours, "growthd": demand_growth,
