@@ -184,7 +184,7 @@ The synthetic critical load is a fixed daily schedule (site.yaml `critical_profi
 | Lead day | AURORA P50 | ECMWF raw | ECMWF corrected | NWP mean corrected (best) | AURORA skill vs best (5-95 %) |
 |---|---|---|---|---|---|
 | 1 | 80.4 | 90.6 | 89.3 | 85.4 | 5.9 % (3.6 to 8.4) |
-| 2 | 92.4 | 101.1 | 99.0 | 93.2 | 0.8 % (-2.1 to 4.1) |
+| 2 | 92.4 | 101.1 | 99.0 | 93.2 | 0.8 % (-2.1 to 3.9) |
 
 RMSE in W/m². Verdict: most of the gain over the raw models at lead day 2 is bias correction; at lead day 1 AURORA keeps a clear 6 % edge. The main added value beyond a simple correction is the calibrated range (P10-P90 coverage 81.7 %).
 
