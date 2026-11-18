@@ -6,6 +6,7 @@ annual figures for Itbayat DPP (MEP 2025-2029 Annex R).
 OLD_LOAD is the uncalibrated series (optional; e.g. from git show 36f42bc:...).
 Writes figures/load_calibration_npc.pdf|png.
 """
+
 from __future__ import annotations
 
 import sys
@@ -31,6 +32,7 @@ def annual(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main(old_path: str | None = None):
+    """Figure: synthetic load (before and after calibration) against NPC's yearly energy and peak."""
     style.apply()
     npc = load_site()["npc_itbayat_dpp"]
     t = pd.DataFrame({k: npc[k] for k in ("years", "kind", "peak_kw", "gross_gen_mwh")}).set_index("years")
@@ -40,13 +42,16 @@ def main(old_path: str | None = None):
     t = t.loc[yrs]
 
     fig, axes = plt.subplots(1, 2, figsize=(7.0, 2.6))
-    for ax, col, mcol, ylab in ((axes[0], "gross_gen_mwh", "mwh", "Annual energy (MWh)"),
-                                (axes[1], "peak_kw", "peak", "Annual peak demand (kW)")):
+    for ax, col, mcol, ylab in (
+        (axes[0], "gross_gen_mwh", "mwh", "Annual energy (MWh)"),
+        (axes[1], "peak_kw", "peak", "Annual peak demand (kW)"),
+    ):
         x = np.arange(len(yrs))
         hist = (t["kind"] == "hist").to_numpy()
         ax.bar(x[hist], t[col][hist], 0.6, color=C["sky"], label="NPC, historical")
-        ax.bar(x[~hist], t[col][~hist], 0.6, color="white", edgecolor=C["sky"], hatch="////", lw=0.6,
-               label="NPC, forecast")
+        ax.bar(
+            x[~hist], t[col][~hist], 0.6, color="white", edgecolor=C["sky"], hatch="////", lw=0.6, label="NPC, forecast"
+        )
         if old is not None:
             o = old.reindex(yrs)[mcol]
             ax.plot(x, o, ls="--", marker="s", ms=3.5, color=C["vermillion"], label="Model before calibration")

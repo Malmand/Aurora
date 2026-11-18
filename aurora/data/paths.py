@@ -1,10 +1,11 @@
 """Fixed locations used by the Phase 1 build."""
+
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SITE_DIR = ROOT / "data" / "itbayat"
-RAW_DIR = SITE_DIR / "raw"            # download cache (git-ignored); raw_small/ holds the inputs
-REF_DIR = SITE_DIR / "reference"      # values transcribed from papers / reports
+RAW_DIR = SITE_DIR / "raw"  # download cache (git-ignored); raw_small/ holds the inputs
+REF_DIR = SITE_DIR / "reference"  # values transcribed from papers / reports
 SITE_YAML = SITE_DIR / "site.yaml"
 SOURCES_MD = SITE_DIR / "SOURCES.md"
 FIG_DIR = ROOT / "figures"

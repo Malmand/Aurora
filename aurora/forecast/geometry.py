@@ -11,6 +11,7 @@ shipped with pvlib (Remund et al. 2003). Altitude is set to 0 m (ASSUMPTION).
 The exact clear-sky level only sets the normalisation: forecasts are made in k
 and converted back with the same GHI_clear, so a bias in GHI_clear cancels.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -18,9 +19,9 @@ import pandas as pd
 
 from aurora.data import paths
 
-ALTITUDE_M = 0.0          # ASSUMPTION, see module docstring
+ALTITUDE_M = 0.0  # ASSUMPTION, see module docstring
 DAYLIGHT_MIN_CLEAR = 50.0  # W/m2: hours used for training and evaluation
-K_MAX = 1.3               # physical cap on the clear-sky index (cloud enhancement)
+K_MAX = 1.3  # physical cap on the clear-sky index (cloud enhancement)
 _OFFSETS_MIN = (-55, -45, -35, -25, -15, -5)
 
 
@@ -53,8 +54,7 @@ def clearsky_index(ghi: pd.Series, ghi_clear: pd.Series) -> pd.Series:
 def season(index: pd.DatetimeIndex) -> np.ndarray:
     """Meteorological season of the local date: DJF, MAM, JJA, SON."""
     m = pd.DatetimeIndex(index).tz_convert(paths.LOCAL_TZ).month
-    return np.array(["DJF", "DJF", "MAM", "MAM", "MAM", "JJA", "JJA", "JJA",
-                     "SON", "SON", "SON", "DJF"])[m - 1]
+    return np.array(["DJF", "DJF", "MAM", "MAM", "MAM", "JJA", "JJA", "JJA", "SON", "SON", "SON", "DJF"])[m - 1]
 
 
 def ghi_to_pv_per_kwp(ghi: pd.Series, temp_c: pd.Series, wind_ms: pd.Series | None) -> pd.Series:
@@ -75,10 +75,11 @@ def ghi_to_pv_per_kwp(ghi: pd.Series, temp_c: pd.Series, wind_ms: pd.Series | No
     mid = idx - pd.Timedelta(minutes=30)
     zen = pvlib.solarposition.get_solarposition(mid, paths.LAT, paths.LON)["apparent_zenith"].to_numpy()
     dec = pvlib.irradiance.erbs(g.to_numpy(), zen, mid.dayofyear.to_numpy())
-    w = pd.DataFrame({"ghi_wm2": g.to_numpy(), "dni_wm2": np.nan_to_num(dec["dni"]),
-                      "dhi_wm2": np.nan_to_num(dec["dhi"])}, index=idx)
+    w = pd.DataFrame(
+        {"ghi_wm2": g.to_numpy(), "dni_wm2": np.nan_to_num(dec["dni"]), "dhi_wm2": np.nan_to_num(dec["dhi"])}, index=idx
+    )
     t = temp_c.reindex(idx)
     if t.isna().all():
-        t = pd.Series(27.0, index=idx)      # only if no temperature at all; cell temperature effect is small
+        t = pd.Series(27.0, index=idx)  # only if no temperature at all; cell temperature effect is small
     pv = pvmodel.pv_ac_per_kwp(w, t, wind_ms.reindex(idx) if wind_ms is not None else None)
     return pv.where(g > 0, 0.0)

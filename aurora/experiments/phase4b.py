@@ -20,14 +20,16 @@ Stress tests at the chosen size, tanker 14 days late, all three storms:
   clinic_shared the clinic shares the last household feeder (cut with it)
 
 Stage A: sizing sweep on all three storms (B, O, C) and the three storms at the
-INL size and at NPC's own planned size, 180 kWp / 120 kWh (A, B, O, C). Stage B: at the chosen size, the three storms at 3, 7 and
-14 days late, two full years (Nov 2024 to Oct 2026), the stress tests and the
-value of forecasting. Jobs write results/phase4b/jobs/<id>.json and are skipped
+INL size and at NPC's own planned size, 180 kWp / 120 kWh (A, B, O, C).
+Stage B: at the chosen size, the three storms at 3, 7 and 14 days late, two full
+years (Nov 2024 to Oct 2026), the stress tests and the value of forecasting.
+Jobs write results/phase4b/jobs/<id>.json and are skipped
 if that file exists, so a stopped run resumes.
 
 Inputs are not measurements: ERA5 weather, pvlib PV, the Phase 1 SYNTHETIC load
 (calibrated to NPC's annual peak and gross generation for Itbayat DPP).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -67,7 +69,7 @@ def system(spec):
     p = params.v2(p)
     sc = spec.get("stress")
     if sc == "gen_fail":
-        p = p.with_(n_units=1)                     # only one of the three working units left
+        p = p.with_(n_units=1)  # only one of the three working units left
     elif sc == "clinic_shared":
         p = p.with_(crit_shared_frac=clinic_share())
     return p
@@ -82,6 +84,7 @@ def make_forecast(kind, truth, p, sigma):
 
 
 def run_job(spec: dict) -> list[dict]:
+    """Run one model-v2 experiment (all its controllers), cache the KPI rows and optionally the hourly series."""
     path = JOBS / f"{spec['id']}.json"
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
@@ -103,27 +106,53 @@ def run_job(spec: dict) -> list[dict]:
         fc = forecasts.ScaledSolarAfter(fc, hit, 0.5)
     if spec["kind"] == "storm":
         first = t0 + pd.Timedelta(hours=P4.DELIVERY_AFTER_H)
-        sched = plant.FuelSchedule(p.tank_l, p.resupply_days, first=first,
-                                   delays={first: spec["delay_days"]} if spec["delay_days"] else {})
+        sched = plant.FuelSchedule(
+            p.tank_l, p.resupply_days, first=first, delays={first: spec["delay_days"]} if spec["delay_days"] else {}
+        )
         tank0 = spec.get("tank0", TANK0_STORM)
     else:
         sched, tank0 = None, None
     rows = []
     for c in spec["controllers"]:
-        r = simulate.run(truth, p, c, fc, start=t0, hours=24 * spec["days"], schedule=sched, tank0=tank0,
-                         horizon=horizon, horizon_mode="issue", n_scen_risk=N_SCEN,
-                         **({"n_scen": N_SCEN} if c == "C" else {}))
+        r = simulate.run(
+            truth,
+            p,
+            c,
+            fc,
+            start=t0,
+            hours=24 * spec["days"],
+            schedule=sched,
+            tank0=tank0,
+            horizon=horizon,
+            horizon_mode="issue",
+            n_scen_risk=N_SCEN,
+            **({"n_scen": N_SCEN} if c == "C" else {}),
+        )
         if spec.get("hourly"):
             HOURLY.mkdir(parents=True, exist_ok=True)
             r.to_csv(HOURLY / f"{spec['id']}_{c}.csv.gz", float_format="%.4g")
         k = metrics.kpis(r, p)
-        rows.append(dict(job=spec["id"], group=spec["group"], controller=c, sizing=p.sizing,
-                         pv_kwp=p.pv_kwp, bat_kwh=p.bat_kwh, bat_kw=p.bat_kw, forecast=fc.name,
-                         **{k_: spec.get(k_) for k_ in ("storm", "delay_days", "period", "stress")},
-                         start_local=spec["start"], days=spec["days"], n_scen=N_SCEN, model="v2", **k,
-                         flex_total_kwh=round(float(r["flex"].sum()), 0),
-                         crit_total_kwh=round(float(r["crit"].sum()), 0),
-                         deliveries=r.attrs["deliveries"]))
+        rows.append(
+            dict(
+                job=spec["id"],
+                group=spec["group"],
+                controller=c,
+                sizing=p.sizing,
+                pv_kwp=p.pv_kwp,
+                bat_kwh=p.bat_kwh,
+                bat_kw=p.bat_kw,
+                forecast=fc.name,
+                **{k_: spec.get(k_) for k_ in ("storm", "delay_days", "period", "stress")},
+                start_local=spec["start"],
+                days=spec["days"],
+                n_scen=N_SCEN,
+                model="v2",
+                **k,
+                flex_total_kwh=round(float(r["flex"].sum()), 0),
+                crit_total_kwh=round(float(r["crit"].sum()), 0),
+                deliveries=r.attrs["deliveries"],
+            )
+        )
     rows[0]["wall_s"] = round(time.time() - t_wall, 1)
     JOBS.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(rows, indent=1, default=str), encoding="utf-8")
@@ -137,25 +166,54 @@ def storms():
 
 
 def storm_job(key, ev, d, ctls, group, hourly=True, forecast="phase2", **size):
+    """Spec for one storm replay at one tanker delay and one system size."""
     tag = size.get("sizing") or f"pv{size['pv_kwp']}_bat{size['bat_kwh']}"
-    return dict(id=f"{group}_{key}_{tag}_d{d}" + ("" if forecast == "phase2" else f"_{forecast.replace(':', '-')}"),
-                group=group, kind="storm", storm=key, start=ev["start"], days=P4.storm_days(d), delay_days=d,
-                forecast=forecast, controllers=list(ctls), hourly=hourly, **size)
+    return dict(
+        id=f"{group}_{key}_{tag}_d{d}" + ("" if forecast == "phase2" else f"_{forecast.replace(':', '-')}"),
+        group=group,
+        kind="storm",
+        storm=key,
+        start=ev["start"],
+        days=P4.storm_days(d),
+        delay_days=d,
+        forecast=forecast,
+        controllers=list(ctls),
+        hourly=hourly,
+        **size,
+    )
 
 
 def sweep_jobs(st):
-    return [storm_job(key, ev, 14, ("B", "O", "C"), "sweep", hourly=False, pv_kwp=pv, bat_kwh=b)
-            for key, ev in st.iterrows() for pv in PV_GRID for b in BAT_GRID]
+    return [
+        storm_job(key, ev, 14, ("B", "O", "C"), "sweep", hourly=False, pv_kwp=pv, bat_kwh=b)
+        for key, ev in st.iterrows()
+        for pv in PV_GRID
+        for b in BAT_GRID
+    ]
 
 
 def year_jobs(pv, b):
+    """Specs for the two normal years at the chosen size, in half-year chunks."""
     out = []
     for start, days, per in P4.YEAR_CHUNKS:
         if days is None:
             days = int(((P4.DATA_END - pd.Timedelta(hours=49)) - P4.local_utc(start)) // pd.Timedelta(days=1))
-        out.append(dict(id=f"year_pv{pv}_bat{b}_{start}", group="year", kind="year", start=start, days=days,
-                        period=per, forecast="phase2", controllers=list(ALL), hourly=True, delay_days=0,
-                        pv_kwp=pv, bat_kwh=b))
+        out.append(
+            dict(
+                id=f"year_pv{pv}_bat{b}_{start}",
+                group="year",
+                kind="year",
+                start=start,
+                days=days,
+                period=per,
+                forecast="phase2",
+                controllers=list(ALL),
+                hourly=True,
+                delay_days=0,
+                pv_kwp=pv,
+                bat_kwh=b,
+            )
+        )
     return out
 
 
@@ -173,20 +231,28 @@ def recommended(sw: pd.DataFrame | None = None) -> pd.Series:
     with the fewest worst-case outage hours, then the cheapest."""
     sw = load_rows("sweep_") if sw is None else sw
     c = sw[sw["controller"] == "C"]
-    g = c.groupby(["pv_kwp", "bat_kwh", "bat_kw"]).agg(worst_outage_h=("crit_outage_h", "max"),
-                                                       min_cest_median_h=("cest_median_h", "min"),
-                                                       n_storms=("storm", "nunique")).reset_index()
+    g = (
+        c.groupby(["pv_kwp", "bat_kwh", "bat_kw"])
+        .agg(
+            worst_outage_h=("crit_outage_h", "max"),
+            min_cest_median_h=("cest_median_h", "min"),
+            n_storms=("storm", "nunique"),
+        )
+        .reset_index()
+    )
     g = g[g["n_storms"] == g["n_storms"].max()]
     g["capex_mphp"] = [P4.capex_php(a, b, k) / 1e6 for a, b, k in zip(g.pv_kwp, g.bat_kwh, g.bat_kw)]
     ok = g[(g["worst_outage_h"] == 0) & (g["min_cest_median_h"] >= CEST_TARGET_H)]
-    pick = (ok.sort_values(["capex_mphp", "bat_kwh"]) if not ok.empty
-            else g.sort_values(["worst_outage_h", "capex_mphp"]))
+    pick = (
+        ok.sort_values(["capex_mphp", "bat_kwh"]) if not ok.empty else g.sort_values(["worst_outage_h", "capex_mphp"])
+    )
     r = pick.iloc[0].copy()
     r["meets_target"] = not ok.empty
     return r
 
 
 def stage_jobs(stage):
+    """Stage A: sizing sweep plus INL and NPC sizes. Stage B: everything at the chosen size."""
     st = storms()
     if stage == "A":
         jobs = sweep_jobs(st)
@@ -216,14 +282,17 @@ def cost_estimate(spec):
 def run_stage(stage, workers):
     jobs = [j for j in stage_jobs(stage) if not (JOBS / f"{j['id']}.json").exists()]
     jobs.sort(key=cost_estimate, reverse=True)
-    print(f"phase4b stage {stage}: {len(jobs)} jobs to run, about {sum(map(cost_estimate, jobs)) / 3600:.1f} CPU-h",
-          flush=True)
+    print(
+        f"phase4b stage {stage}: {len(jobs)} jobs to run, about {sum(map(cost_estimate, jobs)) / 3600:.1f} CPU-h",
+        flush=True,
+    )
     with mp.get_context("fork").Pool(workers, maxtasksperchild=4) as pool:
         for _ in pool.imap_unordered(run_job, jobs):
             pass
 
 
 def main(argv=None):
+    """Command line: `run --stage A|B` (parallel, resumable) or `tables`."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("run")
@@ -235,6 +304,7 @@ def main(argv=None):
         run_stage(a.stage, a.workers)
     else:
         from . import phase4b_tables
+
         phase4b_tables.write_all()
 
 

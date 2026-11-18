@@ -14,6 +14,7 @@ value (seasonal-naive residual), which keeps step-shaped schedules such as the
 critical load exact. One LightGBM quantile model per component, lead day and
 level; split-conformal shift per lead day and season, as for solar.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -40,14 +41,14 @@ def load_series() -> tuple[pd.DataFrame, bool]:
 
 
 def features(load: pd.DataFrame, nwp: dict, ld: int, index: pd.DatetimeIndex) -> pd.DataFrame:
+    """Demand features for lead day `ld`: calendar, forecast temperature and yesterday's load at the same hour."""
     X = pd.DataFrame(index=index)
     local = index.tz_convert(paths.LOCAL_TZ)
     X["hour_local"] = local.hour
     X["weekday"] = local.dayofweek
     doy = local.dayofyear.to_numpy()
     X["doy_sin"], X["doy_cos"] = np.sin(2 * np.pi * doy / 365.25), np.cos(2 * np.pi * doy / 365.25)
-    temps = [nwp[m][f"temp_c_d{ld}"].reindex(index) for m in ALL_MODELS
-             if m in nwp and f"temp_c_d{ld}" in nwp[m]]
+    temps = [nwp[m][f"temp_c_d{ld}"].reindex(index) for m in ALL_MODELS if m in nwp and f"temp_c_d{ld}" in nwp[m]]
     if temps:
         t = pd.concat(temps, axis=1).mean(axis=1)
         X["temp_fc"] = t
@@ -63,8 +64,11 @@ def predict(models, X: pd.DataFrame, lag: pd.Series) -> np.ndarray:
     return np.sort(np.clip(R + lag.to_numpy()[:, None], 0, None), axis=1)
 
 
-def backtest(nwp: dict, months: pd.DatetimeIndex, cutoff_gap=pd.Timedelta(days=3), verbose=True
-             ) -> pd.DataFrame:
+CUTOFF_GAP = pd.Timedelta(days=3)  # training data ends this long before each test month
+
+
+def backtest(nwp: dict, months: pd.DatetimeIndex, cutoff_gap=CUTOFF_GAP, verbose=True) -> pd.DataFrame:
+    """Rolling-origin backtest of the critical and flexible demand quantile models."""
     load, synthetic = load_series()
     start = max(load.index.min(), min(df.index.min() for df in nwp.values()))
     end = min(load.index.max(), max(df.index.max() for df in nwp.values()))
@@ -92,17 +96,19 @@ def backtest(nwp: dict, months: pd.DatetimeIndex, cutoff_gap=pd.Timedelta(days=3
                 cols = [f"{comp}_raw_p{round(100 * t)}" for t in LEVELS]
                 P[cols] = Q
                 P[f"{comp}_true"] = y.loc[rows].to_numpy()
-                P[f"{comp}_naive"] = lag.loc[rows].to_numpy()   # seasonal-naive baseline
+                P[f"{comp}_naive"] = lag.loc[rows].to_numpy()  # seasonal-naive baseline
                 pl = pd.concat(pool) if pool else pd.DataFrame()
                 Qc, ok = Q, np.zeros(len(Q), bool)
                 if len(pl):
-                    pl = pl[(pl["lead_day"] == ld) & (pl.index < cutoff)
-                            & (pl.index >= cutoff - pd.Timedelta(days=365))].dropna(subset=[f"{comp}_true"])
+                    pl = pl[
+                        (pl["lead_day"] == ld) & (pl.index < cutoff) & (pl.index >= cutoff - pd.Timedelta(days=365))
+                    ].dropna(subset=[f"{comp}_true"])
                     if len(pl) >= Qm.MIN_GROUP:
                         sc = pl[f"{comp}_true"].to_numpy()[:, None] - pl[cols].to_numpy()
                         g = pd.DataFrame({"lead_day": ld, "season": P["season"].to_numpy()})
-                        Qc, ok = Qm.calibrate(Q, g, sc, pl[["lead_day", "season"]].reset_index(drop=True),
-                                              lo=0.0, levels=LEVELS)
+                        Qc, ok = Qm.calibrate(
+                            Q, g, sc, pl[["lead_day", "season"]].reset_index(drop=True), lo=0.0, levels=LEVELS
+                        )
                 P[[f"{comp}_p{round(100 * t)}" for t in LEVELS]] = Qc
                 P[f"{comp}_calibrated"] = ok
             pieces.append(P)

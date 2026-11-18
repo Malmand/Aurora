@@ -9,6 +9,7 @@ the raw inputs; IBTrACS typhoon flags and events; hourly load (synthetic, or
 real logs with --load); validation report. A missing input is reported and its
 step skipped. No data are substituted. Exit code 2 means an input is missing.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -30,8 +31,11 @@ def _inputs(status: dict):
 
 
 def main(argv=None) -> int:
+    """Rebuild every Phase 1 site file from raw_small/ (no network); --load swaps in real plant logs."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--load", default=None, help="CSV/parquet of real hourly plant load (timestamp,total_kW[,critical_kW])")
+    ap.add_argument(
+        "--load", default=None, help="CSV/parquet of real hourly plant load (timestamp,total_kW[,critical_kW])"
+    )
     a = ap.parse_args(argv)
     status: dict[str, str] = {}
 
@@ -75,8 +79,9 @@ def main(argv=None) -> int:
         df = synthetic_load(idx, temp, s)
         df.attrs["temperature_input"] = tsrc
         df.to_parquet(paths.LOAD_SYNTH)
-        status["load"] = (f"SYNTHETIC -> {paths.LOAD_SYNTH.name} (temperature from {tsrc}; "
-                          f"peak {df['total_kW'].max():.0f} kW)")
+        status["load"] = (
+            f"SYNTHETIC -> {paths.LOAD_SYNTH.name} (temperature from {tsrc}; peak {df['total_kW'].max():.0f} kW)"
+        )
 
     # 5. validation
     out = validate.build_report()

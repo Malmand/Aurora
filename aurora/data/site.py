@@ -1,4 +1,5 @@
 """Load and check site.yaml; regenerate the value table in SOURCES.md."""
+
 from __future__ import annotations
 
 import argparse
@@ -55,18 +56,34 @@ def check(site: dict, sources_md: str | None = None) -> list[str]:
 
 
 def value_table(site: dict) -> str:
+    """Markdown table of every site value with source, date, confidence and status (for SOURCES.md)."""
+
     def cell(x):
         s = "" if x is None else str(x)
         return s.replace("|", "/")
-    rows = ["| Key | Value | Unit | Source | Date | Confidence | Status | Note |",
-            "|---|---|---|---|---|---|---|---|"]
+
+    rows = ["| Key | Value | Unit | Source | Date | Confidence | Status | Note |", "|---|---|---|---|---|---|---|---|"]
     for k, e in site["values"].items():
         note = e.get("note", "")
         if "range" in e:
             note = (note + f" Sensitivity range {e['range']}.").strip()
-        rows.append("| " + " | ".join(cell(x) for x in (
-            k, e["value"] if e["value"] is not None else "**missing**", e["unit"], e["source"],
-            e["date"], e["confidence"], e["status"], note)) + " |")
+        rows.append(
+            "| "
+            + " | ".join(
+                cell(x)
+                for x in (
+                    k,
+                    e["value"] if e["value"] is not None else "**missing**",
+                    e["unit"],
+                    e["source"],
+                    e["date"],
+                    e["confidence"],
+                    e["status"],
+                    note,
+                )
+            )
+            + " |"
+        )
     return "\n".join(rows)
 
 
@@ -80,6 +97,7 @@ def write_sources(site: dict, path=paths.SOURCES_MD) -> None:
 
 
 def main(argv=None):
+    """Print the site values, or rewrite the table in SOURCES.md with --write-sources."""
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--write-sources", action="store_true")
     a = ap.parse_args(argv)

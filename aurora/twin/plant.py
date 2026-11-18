@@ -12,6 +12,7 @@ to a dump load (fuel is burned at minimum load). The energy balance closes exact
 
     pv_used + diesel + discharge = charge + crit_served + flex_served
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -24,10 +25,12 @@ EPS = 1e-9
 
 @dataclass
 class Decision:
-    n_on: int = 0               # diesel units committed
-    p_diesel: float = 0.0       # diesel set point (kW)
-    p_batt: float = 0.0         # planned battery power, + discharge / - charge (kW), informative
-    shed_flex: float = 0.0      # planned flexible shedding (kW)
+    """What a controller asks the plant to do for one hour."""
+
+    n_on: int = 0  # diesel units committed
+    p_diesel: float = 0.0  # diesel set point (kW)
+    p_batt: float = 0.0  # planned battery power, + discharge / - charge (kW), informative
+    shed_flex: float = 0.0  # planned flexible shedding (kW)
     note: str = ""
 
 
@@ -35,12 +38,14 @@ class Decision:
 class FuelSchedule:
     """Planned deliveries every `interval_days`, each topping the tank up to capacity.
     `delays` maps a planned delivery time to a delay in days (stress tests)."""
+
     capacity_l: float
     interval_days: float
     first: pd.Timestamp
     delays: dict = field(default_factory=dict)
 
     def planned(self, t0, t1) -> list:
+        """Planned delivery times between t0 (minus 60 days) and t1."""
         out, k = [], 0
         step = pd.Timedelta(days=self.interval_days)
         t = self.first
@@ -52,13 +57,16 @@ class FuelSchedule:
         return out
 
     def actual(self, planned_t):
+        """Arrival time of a planned delivery after its delay."""
         return planned_t + pd.Timedelta(days=self.delays.get(planned_t, 0.0))
 
 
 class FuelTank:
+    """Fuel tank with a delivery schedule: takes deliveries and tells the controller when the next ones may come."""
+
     def __init__(self, sched: FuelSchedule, level_l: float):
         self.s, self.level = sched, float(level_l)
-        self.delivered = set()     # planned times already delivered
+        self.delivered = set()  # planned times already delivered
         self.log = []
 
     def arrivals(self, t):
@@ -73,6 +81,7 @@ class FuelTank:
         return out
 
     def receive(self, t):
+        """Refill to capacity for every delivery that has arrived by time t."""
         for pt in self.arrivals(t):
             self.delivered.add(pt)
             self.log.append((t, pt, self.s.capacity_l - self.level))
@@ -105,6 +114,7 @@ class FuelTank:
 
 
 def unit_range(p, n):
+    """(minimum, maximum) output of n committed units (kW)."""
     return n * p.unit_kw * p.min_load_frac, n * p.unit_kw
 
 
@@ -145,12 +155,14 @@ def _dispatch(p, n, pd0, solar, load, dis_max, ch_max, tank_l):
         ch = min(-r, ch_max)
         excess = -r - ch
         curt = min(excess, solar)
-        over = excess - curt          # diesel minimum load that cannot be absorbed
+        over = excess - curt  # diesel minimum load that cannot be absorbed
     return pd_, dis, ch, curt, short, over
 
 
-def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, dec: Decision,
-         has_battery: bool = True) -> dict:
+def step(
+    p, soc: float, tank_l: float, solar: float, crit: float, flex: float, dec: Decision, has_battery: bool = True
+) -> dict:
+    """Apply one hourly decision to the actual solar and load; return every flow, the fuel used and the new state."""
     E = p.bat_kwh if has_battery else 0.0
     dis_max = min(p.bat_kw, max(soc - p.soc_min, 0) * E * p.eta) if E > 0 else 0.0
     ch_max = min(p.bat_kw, max(p.soc_max - soc, 0) * E / p.eta) if E > 0 else 0.0
@@ -159,13 +171,13 @@ def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, d
         n = max_units_for_fuel(p, tank_l, int(np.clip(dec.n_on, 0, p.n_units)))
         res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
         while res[4] > EPS and n < p.n_units and max_units_for_fuel(p, tank_l, n + 1) == n + 1:
-            n += 1                                 # start another unit
+            n += 1  # start another unit
             res = _dispatch(p, n, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
         while res[5] > EPS and n > 0:
             alt = _dispatch(p, n - 1, dec.p_diesel, solar, load, dis_max, ch_max, tank_l)
             if alt[4] > res[4] + EPS:
-                break                              # stopping would black out load: keep the unit at
-            n -= 1                                 # minimum load and dump the excess (res[5])
+                break  # stopping would black out load: keep the unit at
+            n -= 1  # minimum load and dump the excess (res[5])
             res = alt
         return n, res
 
@@ -175,9 +187,9 @@ def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, d
         shed = min(max(dec.shed_flex, 0.0), flex)
         n, res = balance(crit + flex - shed)
         pd_, dis, ch, curt, short, over = res
-        s2 = min(short, flex - shed)               # flexible first
+        s2 = min(short, flex - shed)  # flexible first
         shed += s2
-        unserved = short - s2                      # critical only as a last resort
+        unserved = short - s2  # critical only as a last resort
     else:
         # model v2: whole feeder blocks; the planned cut is rounded up, the emergency
         # cut adds blocks until the shortfall is covered. With crit_shared_frac > 0 the
@@ -194,19 +206,35 @@ def step(p, soc: float, tank_l: float, solar: float, crit: float, flex: float, d
             k = min(B, k + max(1, int(np.ceil(short / blk - 1e-9))))
         pd_, dis, ch, curt, short, over = res
         shed = k * blk
-        unserved = lost_crit + short               # after every block is cut
+        unserved = lost_crit + short  # after every block is cut
     if n == 0:
         pd_, over = 0.0, 0.0
 
     flex_served = flex - shed
     crit_served = crit - unserved
     pv_used = solar - curt
-    fuel = p.fuel_l(n, pd_) if n else 0.0          # fuel at the unit's actual (minimum) loading
+    fuel = p.fuel_l(n, pd_) if n else 0.0  # fuel at the unit's actual (minimum) loading
     dump = over
-    pd_ = pd_ - over                               # energy delivered; the rest goes to a dump load
+    pd_ = pd_ - over  # energy delivered; the rest goes to a dump load
     soc_new = soc + (ch * p.eta - dis / p.eta) / E if E > 0 else 0.0
     resid = pv_used + pd_ + dis - ch - crit_served - flex_served
-    return dict(solar=solar, pv_used=pv_used, curtail=curt, diesel=pd_, n_on=n, fuel_l=fuel,
-                charge=ch, discharge=dis, soc_start=soc, soc_end=soc_new,
-                crit=crit, flex=flex, shed=shed, unserved_crit=unserved,
-                tank_start=tank_l, tank_end=tank_l - fuel, balance_resid=resid, dump=dump)
+    return dict(
+        solar=solar,
+        pv_used=pv_used,
+        curtail=curt,
+        diesel=pd_,
+        n_on=n,
+        fuel_l=fuel,
+        charge=ch,
+        discharge=dis,
+        soc_start=soc,
+        soc_end=soc_new,
+        crit=crit,
+        flex=flex,
+        shed=shed,
+        unserved_crit=unserved,
+        tank_start=tank_l,
+        tank_end=tank_l - fuel,
+        balance_resid=resid,
+        dump=dump,
+    )

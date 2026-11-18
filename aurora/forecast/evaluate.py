@@ -1,4 +1,5 @@
 """Scores for the solar and demand backtests (tables used by report.py)."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -11,12 +12,23 @@ from .features import GHI_MODELS, QUANTILES
 
 QC = Qm.qcols()
 J10, J50, J90 = QUANTILES.index(0.1), QUANTILES.index(0.5), QUANTILES.index(0.9)
-POINT_NAMES = {"aurora": "AURORA P50", "nwp_ecmwf": "Raw NWP: ECMWF IFS", "nwp_gfs": "Raw NWP: GFS",
-               "nwp_icon": "Raw NWP: ICON", "nwp_mean": "Raw NWP: mean of 3",
-               "persist": "Smart persistence", "clim": "Climatology", "fallback": "Fallback P50"}
-PROB_NAMES = {"aurora": "AURORA (calibrated)", "aurora_raw": "AURORA (before conformal)",
-              "nwp_ens": "Raw NWP: 3-model ensemble", "clim": "Climatology (quantiles)",
-              "fallback": "Fallback (widened)"}
+POINT_NAMES = {
+    "aurora": "AURORA P50",
+    "nwp_ecmwf": "Raw NWP: ECMWF IFS",
+    "nwp_gfs": "Raw NWP: GFS",
+    "nwp_icon": "Raw NWP: ICON",
+    "nwp_mean": "Raw NWP: mean of 3",
+    "persist": "Smart persistence",
+    "clim": "Climatology",
+    "fallback": "Fallback P50",
+}
+PROB_NAMES = {
+    "aurora": "AURORA (calibrated)",
+    "aurora_raw": "AURORA (before conformal)",
+    "nwp_ens": "Raw NWP: 3-model ensemble",
+    "clim": "Climatology (quantiles)",
+    "fallback": "Fallback (widened)",
+}
 
 
 def add_typhoon_flags(bt: pd.DataFrame) -> pd.DataFrame:
@@ -66,12 +78,11 @@ def score_table(d: pd.DataFrame) -> pd.DataFrame:
     rows = {}
     for k, f in pt.items():
         s = Qm.point_scores(y, f)
-        s["CRPS"] = s["MAE"]          # deterministic forecast
+        s["CRPS"] = s["MAE"]  # deterministic forecast
         rows[k] = s
     for k, Q in pr.items():
         s = rows.get(k, Qm.point_scores(y, Q[:, J50]))
-        s.update({"CRPS": float(np.mean(Qm.crps_quantiles(y, Q))),
-                  **Qm.band_scores(y, Q[:, J10], Q[:, J90])})
+        s.update({"CRPS": float(np.mean(Qm.crps_quantiles(y, Q))), **Qm.band_scores(y, Q[:, J10], Q[:, J90])})
         s["pinball_P10"] = float(np.mean(Qm.pinball(y, Q[:, J10], 0.1)))
         s["pinball_P50"] = float(np.mean(Qm.pinball(y, Q[:, J50], 0.5)))
         s["pinball_P90"] = float(np.mean(Qm.pinball(y, Q[:, J90], 0.9)))
@@ -103,7 +114,7 @@ def daily_block_bootstrap(d: pd.DataFrame, fn, n_boot=300, seed=2026) -> tuple[f
     """5-95 % range of fn(sample) over bootstrap resamples of issue days."""
     rng = np.random.default_rng(seed)
     days = d["issue_time"].unique()
-    groups = {k: v for k, v in d.groupby("issue_time").indices.items()}
+    groups = dict(d.groupby("issue_time").indices)
     vals = []
     for _ in range(n_boot):
         pick = rng.choice(days, len(days), replace=True)
@@ -113,6 +124,7 @@ def daily_block_bootstrap(d: pd.DataFrame, fn, n_boot=300, seed=2026) -> tuple[f
 
 
 def demand_scores(dm: pd.DataFrame, start) -> pd.DataFrame:
+    """MAE, RMSE, bias and P10-P90 coverage of the demand forecast, by component and lead day."""
     d = dm[dm.index >= start]
     rows = []
     for comp in ("critical", "flex"):

@@ -1,6 +1,6 @@
 """Rebuild every number and figure of the deck from the committed results.
 
-    python -m aurora.run_all            # headline numbers + slide figures + journal figures (a few minutes, no simulation)
+    python -m aurora.run_all            # headline numbers and every slide figure (under a minute, no simulation)
     python -m aurora.run_all --check    # only check that the headline numbers still match results/headline.json
 
 The simulations themselves (hours of CPU) are run separately:
@@ -9,6 +9,7 @@ The simulations themselves (hours of CPU) are run separately:
     python -m aurora.experiments.phase4b run --stage B      # chosen size: storms, years, stress tests
     python -m aurora.experiments.phase4b tables
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,15 +18,23 @@ import time
 
 
 def main(argv=None) -> int:
+    """Rebuild the headline numbers and every slide figure, or with --check only verify the numbers."""
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true")
     a = ap.parse_args(argv)
     from .experiments import headline
+    from .plotting import calibration, slides
+
     if a.check:
         return headline.main(["--check"])
-    steps = [("headline numbers", lambda: headline.main([])),
-             ("slide figures (figures/slides/)", lambda: [f() for f in __import__("aurora.plotting.slides", fromlist=["FIGS"]).FIGS.values()]),
-             ("load calibration figure", lambda: __import__("aurora.plotting.calibration", fromlist=["main"]).main())]
+    steps = [
+        ("headline numbers", lambda: headline.main([])),
+        (
+            "slide figures (figures/slides/)",
+            lambda: [draw() for draw in slides.FIGS.values()],
+        ),
+        ("load calibration figure", calibration.main),
+    ]
     for name, fn in steps:
         t = time.time()
         fn()

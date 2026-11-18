@@ -10,6 +10,7 @@ Outputs
   docs/validation_forecast.md, figures/forecast_*.pdf|png
   data/itbayat/forecast/cache/, models/          full backtest and fitted models (git-ignored)
 """
+
 from __future__ import annotations
 
 import argparse
@@ -33,7 +34,7 @@ LEAN_DEMAND = O.FC_DIR / "backtest_demand.parquet"
 def lean_solar(bt: pd.DataFrame) -> pd.DataFrame:
     """Columns Phase 3/4 need: GHI and PV bands (per kWp), truth, raw NWP mean, persistence."""
     out = []
-    for ld, g in bt.groupby("lead_day"):
+    for _, g in bt.groupby("lead_day"):
         g = g.sort_index()
         gc = g["ghi_clear"]
         o = g[["issue_time", "lead_h", "lead_day", "regime", "calibrated", "ghi_clear", "ghi_true"]].copy()
@@ -51,28 +52,35 @@ def lean_solar(bt: pd.DataFrame) -> pd.DataFrame:
         out.append(o)
     o = pd.concat(out).sort_values(["issue_time", "lead_h"])
     o.index.name = "timestamp"
-    o.attrs.update(description="AURORA Phase 2 solar backtest. GHI in W/m2 (hour mean, hour-ending UTC). "
-                   "pv_kw_per_kwp_*: AC kW per kWp DC (multiply by array size). ghi_ref: satellite retrieval, "
-                   "not a measurement. regime: full / reduced (no NWP GHI) / reduced_reverse (2022, trained "
-                   "on 2023).")
+    o.attrs.update(
+        description="AURORA Phase 2 solar backtest. GHI in W/m2 (hour mean, hour-ending UTC). "
+        "pv_kw_per_kwp_*: AC kW per kWp DC (multiply by array size). ghi_ref: satellite retrieval, "
+        "not a measurement. regime: full / reduced (no NWP GHI) / reduced_reverse (2022, trained "
+        "on 2023)."
+    )
     return o
 
 
 def pv_scores(lean: pd.DataFrame, kwp=300.0) -> dict:
+    """PV-power error of AURORA, raw NWP and persistence for a `kwp` array (kW), by lead day."""
     d = lean[(lean.index >= B.EVAL_START) & (lean["regime"] == "full") & (lean["ghi_clear"] >= 50)]
     d = d.dropna(subset=["pv_kw_per_kwp_ref", "pv_kw_per_kwp_nwp_mean", "pv_kw_per_kwp_persist"])
     out = {}
     for ld, g in d.groupby("lead_day"):
         y = g["pv_kw_per_kwp_ref"] * kwp
         e = g["pv_kw_per_kwp_p50"] * kwp - y
-        out[ld] = {"mae": e.abs().mean(), "rmse": np.sqrt((e ** 2).mean()),
-                   "rmse_nwp": np.sqrt(((g["pv_kw_per_kwp_nwp_mean"] * kwp - y) ** 2).mean()),
-                   "rmse_persist": np.sqrt(((g["pv_kw_per_kwp_persist"] * kwp - y) ** 2).mean()),
-                   "picp": ((y >= g["pv_kw_per_kwp_p10"] * kwp) & (y <= g["pv_kw_per_kwp_p90"] * kwp)).mean()}
+        out[ld] = {
+            "mae": e.abs().mean(),
+            "rmse": np.sqrt((e**2).mean()),
+            "rmse_nwp": np.sqrt(((g["pv_kw_per_kwp_nwp_mean"] * kwp - y) ** 2).mean()),
+            "rmse_persist": np.sqrt(((g["pv_kw_per_kwp_persist"] * kwp - y) ** 2).mean()),
+            "picp": ((y >= g["pv_kw_per_kwp_p10"] * kwp) & (y <= g["pv_kw_per_kwp_p90"] * kwp)).mean(),
+        }
     return out
 
 
 def main(argv=None) -> int:
+    """Run the solar and demand backtests, write the report, figures and the lean forecast files."""
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--reuse", action="store_true", help="reuse cached backtests")
     a = ap.parse_args(argv)
@@ -94,12 +102,15 @@ def main(argv=None) -> int:
         dm.to_parquet(dem_p)
     lean = lean_solar(bt)
     lean.to_parquet(LEAN_SOLAR, compression="zstd")
-    dcols = ["issue_time", "lead_day"] + [f"{c}_{x}" for c in D.COMPONENTS
-                                          for x in ("p10", "p50", "p90", "true", "calibrated")]
+    dcols = ["issue_time", "lead_day"] + [
+        f"{c}_{x}" for c in D.COMPONENTS for x in ("p10", "p50", "p90", "true", "calibrated")
+    ]
     dl = dm[dcols].copy()
     dl.index.name = "timestamp"
-    dl.attrs.update(description="AURORA Phase 2 demand backtest on the SYNTHETIC Phase 1 load (kW).",
-                    synthetic=dm.attrs.get("synthetic", "True"))
+    dl.attrs.update(
+        description="AURORA Phase 2 demand backtest on the SYNTHETIC Phase 1 load (kW).",
+        synthetic=dm.attrs.get("synthetic", "True"),
+    )
     dl.to_parquet(LEAN_DEMAND, compression="zstd")
     print("report and figures")
     res = report.build(bt, dm, pv_scores(lean))
@@ -113,9 +124,11 @@ def main(argv=None) -> int:
     issues = []
     if "typhoon_week" in res:
         _, a0, b0 = res["typhoon_week"]
-        issues += list(pd.date_range(a0 - pd.Timedelta(days=1), b0 - pd.Timedelta(days=1), freq="D")
-                       + pd.Timedelta(hours=O.ISSUE_HOUR_UTC - a0.hour))
-    end = dl.index.max()          # demand table holds every hour, night included
+        issues += list(
+            pd.date_range(a0 - pd.Timedelta(days=1), b0 - pd.Timedelta(days=1), freq="D")
+            + pd.Timedelta(hours=O.ISSUE_HOUR_UTC - a0.hour)
+        )
+    end = dl.index.max()  # demand table holds every hour, night included
     last_issue = max(t for t in lean["issue_time"].unique() if t + pd.Timedelta(hours=48) <= end)
     issues.append(last_issue)
     for it in issues:

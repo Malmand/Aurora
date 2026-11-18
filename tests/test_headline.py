@@ -1,4 +1,5 @@
 """The numbers on the deck must follow from the committed results."""
+
 import json
 
 import pytest

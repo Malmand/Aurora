@@ -18,6 +18,7 @@ with widened bands and ``fallback = True``. Demand then uses climatological
 temperature. The models are trained once by ``train_final`` and cached in
 ``data/itbayat/forecast/models/`` (git-ignored, rebuilt on demand).
 """
+
 from __future__ import annotations
 
 import pickle
@@ -30,16 +31,18 @@ from aurora.data.site import load_site, value
 
 from . import baselines, demand as D, quantile as Qm
 from .backtest import POOL_DAYS, full_feature_cols, reduced_feature_cols
-from .features import (ISSUE_HOUR_UTC, LEAD_DAYS, QUANTILES, lead_features, mslp_climatology,
-                       target_frame)
+from .features import ISSUE_HOUR_UTC, LEAD_DAYS, QUANTILES, lead_features, mslp_climatology, target_frame
 from .geometry import K_MAX, clearsky_index, ghi_to_pv_per_kwp, hourly_clearsky, season
 
-PV_KWP_INL = float(value(load_site(), "pv_kwp_inl"))   # default array for the CSV files
+PV_KWP_INL = float(value(load_site(), "pv_kwp_inl"))  # default array for the CSV files
 FC_DIR = paths.SITE_DIR / "forecast"
 MODEL_DIR = FC_DIR / "models"
 ISSUE_DIR = FC_DIR / "issues"
-SCHEMA = (["issue_time", "timestamp", "solar_kW_p10", "solar_kW_p50", "solar_kW_p90"]
-          + [f"demand_{c}_kW_p{p}" for c in D.COMPONENTS for p in (10, 50, 90)] + ["fallback"])
+SCHEMA = (
+    ["issue_time", "timestamp", "solar_kW_p10", "solar_kW_p50", "solar_kW_p90"]
+    + [f"demand_{c}_kW_p{p}" for c in D.COMPONENTS for p in (10, 50, 90)]
+    + ["fallback"]
+)
 J = {t: QUANTILES.index(t) for t in (0.1, 0.5, 0.9)}
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 SATELLITE_URL = "https://satellite-api.open-meteo.com/v1/archive"
@@ -98,12 +101,18 @@ def train_final(bt_full: pd.DataFrame, demand_bt: pd.DataFrame, verbose=True) ->
     for ld in LEAD_DAYS:
         X, T = tabs[ld]
         ok = T["daylight"] & T["k_true"].notna()
-        for regime, cols, mask in (("full", full_feature_cols(X), ok & T["has_ghi_nwp"]),
-                                   ("reduced", reduced_feature_cols(X), ok)):
+        for regime, cols, mask in (
+            ("full", full_feature_cols(X), ok & T["has_ghi_nwp"]),
+            ("reduced", reduced_feature_cols(X), ok),
+        ):
             bundle["solar"][(regime, ld)] = (cols, Qm.fit(X.loc[mask, cols], T.loc[mask, "k_true"]))
-            p = bt_full[(bt_full["regime"].str.startswith(regime)) & (bt_full["lead_day"] == ld)
-                        & bt_full["daylight"] & bt_full["k_true"].notna()
-                        & (bt_full.index >= end - pd.Timedelta(days=POOL_DAYS))]
+            p = bt_full[
+                (bt_full["regime"].str.startswith(regime))
+                & (bt_full["lead_day"] == ld)
+                & bt_full["daylight"]
+                & bt_full["k_true"].notna()
+                & (bt_full.index >= end - pd.Timedelta(days=POOL_DAYS))
+            ]
             sc = p["k_true"].to_numpy()[:, None] - p[[f"raw_{c}" for c in Qm.qcols()]].to_numpy()
             offs = {}
             for s_ in p["season"].unique():
@@ -119,17 +128,24 @@ def train_final(bt_full: pd.DataFrame, demand_bt: pd.DataFrame, verbose=True) ->
             print(f"  final solar models, lead day {ld}")
     # demand
     load, synthetic = D.load_series()
-    idx = pd.date_range(max(load.index.min(), min(df.index.min() for df in nwp.values())),
-                        min(load.index.max(), max(df.index.max() for df in nwp.values())), freq="h")
+    idx = pd.date_range(
+        max(load.index.min(), min(df.index.min() for df in nwp.values())),
+        min(load.index.max(), max(df.index.max() for df in nwp.values())),
+        freq="h",
+    )
     for ld in LEAD_DAYS:
         Xd = D.features(load, nwp, ld, idx)
         for comp in D.COMPONENTS:
             r = load[f"{comp}_kW"].reindex(idx) - Xd[f"{comp}_kW_lag"]
             m = r.notna().to_numpy()
             bundle["demand"][(comp, ld)] = (list(Xd.columns), Qm.fit(Xd[m], r[m], D.LEVELS, D.PARAMS, 200))
-            p = demand_bt[(demand_bt["lead_day"] == ld)
-                          & (demand_bt.index >= end - pd.Timedelta(days=POOL_DAYS))].dropna(subset=[f"{comp}_true"])
-            sc = p[f"{comp}_true"].to_numpy()[:, None] - p[[f"{comp}_raw_p{round(100 * t)}" for t in D.LEVELS]].to_numpy()
+            p = demand_bt[
+                (demand_bt["lead_day"] == ld) & (demand_bt.index >= end - pd.Timedelta(days=POOL_DAYS))
+            ].dropna(subset=[f"{comp}_true"])
+            sc = (
+                p[f"{comp}_true"].to_numpy()[:, None]
+                - p[[f"{comp}_raw_p{round(100 * t)}" for t in D.LEVELS]].to_numpy()
+            )
             o = Qm.offsets(sc, D.LEVELS) if len(p) >= Qm.MIN_GROUP else np.zeros(len(D.LEVELS))
             o[D.LEVELS.index(0.5)] = 0.0
             bundle["demand_offsets"][(comp, ld)] = o
@@ -137,8 +153,18 @@ def train_final(bt_full: pd.DataFrame, demand_bt: pd.DataFrame, verbose=True) ->
     hist = base[base["daylight"]]
     tab = baselines.climatology_table(hist["k_sat"])
     kc = baselines.climatology(tab, hist.index)["mean"]
-    fr = [pd.DataFrame({"p": base["k_sat"].shift(24 * ld, freq="h").reindex(hist.index), "c": kc,
-                        "y": hist["k_sat"], "ld": ld, "s": hist["season"]}) for ld in LEAD_DAYS]
+    fr = [
+        pd.DataFrame(
+            {
+                "p": base["k_sat"].shift(24 * ld, freq="h").reindex(hist.index),
+                "c": kc,
+                "y": hist["k_sat"],
+                "ld": ld,
+                "s": hist["season"],
+            }
+        )
+        for ld in LEAD_DAYS
+    ]
     d = pd.concat(fr)
     bundle["fallback"] = baselines.fit_fallback(d["p"], d["c"], d["y"], d["ld"], d["s"])
     bundle["clim_k"] = tab
@@ -152,7 +178,8 @@ def train_final(bt_full: pd.DataFrame, demand_bt: pd.DataFrame, verbose=True) ->
         pickle.dump(bundle, f)
     (MODEL_DIR / "README.txt").write_text(
         "Cached final models from python -m aurora.forecast.build. Rebuilt on demand; not committed.\n",
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     return bundle
 
 
@@ -165,7 +192,7 @@ def load_bundle() -> dict:
 
 
 # ------------------------------------------------------------- live input
-def fetch_live_nwp(issue_time: pd.Timestamp, timeout=30) -> dict[str, pd.DataFrame]:
+def fetch_live_nwp(timeout=30) -> dict[str, pd.DataFrame]:
     """Latest run of each model, laid out like the previous-runs files (_d1 and _d2 hold
     the same live run, so lead day 1 rows read _d1 and lead day 2 rows read _d2).
     Raises DownloadBlocked if no model can be fetched."""
@@ -174,9 +201,20 @@ def fetch_live_nwp(issue_time: pd.Timestamp, timeout=30) -> dict[str, pd.DataFra
     out, errors = {}, []
     for key, name in rawio.NWP_MODELS.items():
         try:
-            js = get_json(FORECAST_URL, dict(latitude=paths.LAT, longitude=paths.LON, models=name,
-                                             hourly=",".join(rawio.NWP_OM_VARS), timezone="GMT",
-                                             past_days=2, forecast_days=3), timeout=timeout, retries=2)
+            js = get_json(
+                FORECAST_URL,
+                dict(
+                    latitude=paths.LAT,
+                    longitude=paths.LON,
+                    models=name,
+                    hourly=",".join(rawio.NWP_OM_VARS),
+                    timezone="GMT",
+                    past_days=2,
+                    forecast_days=3,
+                ),
+                timeout=timeout,
+                retries=2,
+            )
         except DownloadBlocked as exc:
             errors.append(f"{key}: {exc}")
             continue
@@ -189,17 +227,29 @@ def fetch_live_nwp(issue_time: pd.Timestamp, timeout=30) -> dict[str, pd.DataFra
 
 
 def fetch_recent_satellite(issue_time: pd.Timestamp, timeout=30) -> pd.Series:
+    """Last three days of satellite GHI for the persistence features of a live issue."""
     from aurora.data.http import get_json
 
     a = (issue_time - pd.Timedelta(days=3)).date()
-    js = get_json(SATELLITE_URL, dict(latitude=paths.LAT, longitude=paths.LON, start_date=str(a),
-                                      end_date=str(issue_time.date()), hourly="shortwave_radiation",
-                                      timezone="GMT"), timeout=timeout, retries=2)
+    js = get_json(
+        SATELLITE_URL,
+        dict(
+            latitude=paths.LAT,
+            longitude=paths.LON,
+            start_date=str(a),
+            end_date=str(issue_time.date()),
+            hourly="shortwave_radiation",
+            timezone="GMT",
+        ),
+        timeout=timeout,
+        retries=2,
+    )
     return rawio.om_hourly_to_frame(js["hourly"])["ghi_wm2"]
 
 
 # ------------------------------------------------------------- one issue
-def _apply_offsets(Q, offs, seasons, levels):
+def _apply_offsets(Q, offs, seasons):
+    """Add the conformal offset of each row's season (or the all-season one) and keep quantiles sorted."""
     out = Q.copy()
     for i, s in enumerate(seasons):
         o = offs.get(s, offs.get("all")) if isinstance(offs, dict) else offs
@@ -208,9 +258,14 @@ def _apply_offsets(Q, offs, seasons, levels):
     return np.sort(out, axis=1)
 
 
-def forecast_issue(issue_time, bundle: dict | None = None, nwp: dict | None = None,
-                   ghi_obs: pd.Series | None = None, load_hist: pd.DataFrame | None = None,
-                   pv_kwp=PV_KWP_INL) -> pd.DataFrame:
+def forecast_issue(
+    issue_time,
+    bundle: dict | None = None,
+    nwp: dict | None = None,
+    ghi_obs: pd.Series | None = None,
+    load_hist: pd.DataFrame | None = None,
+    pv_kwp=PV_KWP_INL,
+) -> pd.DataFrame:
     """48 h forecast for one issue time from given inputs. ``nwp=None`` or no NWP GHI in
     the window -> fallback. ``ghi_obs``: reference GHI up to the issue time (persistence)."""
     it = normalise_issue(issue_time)
@@ -237,22 +292,23 @@ def forecast_issue(issue_time, bundle: dict | None = None, nwp: dict | None = No
         if has[day].any():
             cols, models = b["solar"][("full", ld)]
             Q = Qm.predict(models, X[cols], 0.0, K_MAX)
-            Qk = _apply_offsets(Q, b["offsets"][("full", ld)], seas, QUANTILES)
+            Qk = _apply_offsets(Q, b["offsets"][("full", ld)], seas)
         else:
             fallback = True
             kc = baselines.climatology(b["clim_k"], rows)["mean"].to_numpy()
-            Qk = baselines.predict_fallback(b["fallback"], X["k_persist"].to_numpy(), kc,
-                                            np.full(len(rows), ld), seas)
+            Qk = baselines.predict_fallback(b["fallback"], X["k_persist"].to_numpy(), kc, np.full(len(rows), ld), seas)
         Qk = np.where(day[:, None], np.clip(Qk, 0, K_MAX), 0.0)
         ghiq = Qk * T["ghi_clear"].to_numpy()[:, None]
         temp = T["temp_fc"].copy()
         if temp.isna().all():
-            temp = pd.Series(b["clim_temp"].reindex(pd.MultiIndex.from_arrays(
-                [rows.month, rows.hour])).to_numpy(), index=rows)
+            temp = pd.Series(
+                b["clim_temp"].reindex(pd.MultiIndex.from_arrays([rows.month, rows.hour])).to_numpy(), index=rows
+            )
         wind = T["wind_fc"].fillna(3.0)
         for jj, t in enumerate((0.1, 0.5, 0.9)):
-            solar[np.isin(w, rows), jj] = ghi_to_pv_per_kwp(pd.Series(ghiq[:, J[t]], index=rows), temp,
-                                                            wind).to_numpy() * pv_kwp
+            solar[np.isin(w, rows), jj] = (
+                ghi_to_pv_per_kwp(pd.Series(ghiq[:, J[t]], index=rows), temp, wind).to_numpy() * pv_kwp
+            )
         # demand
         lh = load_hist if load_hist is not None else D.load_series()[0]
         lh = lh[lh.index <= it]
@@ -286,7 +342,7 @@ def live(issue_time=None, pv_kwp=PV_KWP_INL) -> tuple[pd.DataFrame, str]:
     it = normalise_issue(issue_time)
     note = "live NWP"
     try:
-        nwp = fetch_live_nwp(it)
+        nwp = fetch_live_nwp()
     except (DownloadBlocked, OSError, KeyError, ValueError) as exc:
         nwp, note = None, f"fallback: NWP unavailable ({exc})"
     try:
@@ -294,4 +350,3 @@ def live(issue_time=None, pv_kwp=PV_KWP_INL) -> tuple[pd.DataFrame, str]:
     except Exception as exc:  # noqa: BLE001 - persistence is optional
         obs, note = None, note + f"; no recent satellite GHI ({type(exc).__name__})"
     return forecast_issue(it, nwp=nwp, ghi_obs=obs, pv_kwp=pv_kwp), note
-

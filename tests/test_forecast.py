@@ -30,7 +30,7 @@ def test_conformal_restores_coverage():
     rng = np.random.default_rng(1)
     n = 4000
     y = rng.normal(size=2 * n)
-    z = np.array([-1.2816, 0.0, 1.2816]) * 0.5          # band half as wide as it should be
+    z = np.array([-1.2816, 0.0, 1.2816]) * 0.5  # band half as wide as it should be
     levels = (0.1, 0.5, 0.9)
     Q = np.tile(z, (2 * n, 1))
     pool_scores = y[:n, None] - Q[:n]
@@ -73,7 +73,7 @@ def test_issue_window_and_causality():
 def test_persistence_features_never_use_the_future():
     idx = pd.date_range("2024-05-25", "2024-06-10", freq="h", tz="UTC")
     base = hourly_clearsky(idx)
-    base["k_sat"] = np.arange(len(idx), dtype=float)     # k encodes the time it was observed
+    base["k_sat"] = np.arange(len(idx), dtype=float)  # k encodes the time it was observed
     base["season"] = season(idx)
     for ld in (1, 2):
         X = lead_features(base, {}, ld)
@@ -121,10 +121,12 @@ def test_from_backtest_schema_and_night_zero():
     it = pd.Timestamp("2025-07-01 16:00", tz="UTC")
     w = O.window(it)
     day = w[(w.tz_convert("Asia/Manila").hour >= 7) & (w.tz_convert("Asia/Manila").hour <= 17)]
-    solar = pd.DataFrame({"issue_time": it, **{f"pv_kw_per_kwp_p{p}": 0.1 * (i + 1)
-                                                for i, p in enumerate((10, 50, 90))}}, index=day)
-    dem = pd.DataFrame({"issue_time": it, **{f"{c}_p{p}": float(p) for c in ("critical", "flex")
-                                             for p in (10, 50, 90)}}, index=w)
+    solar = pd.DataFrame(
+        {"issue_time": it, **{f"pv_kw_per_kwp_p{p}": 0.1 * (i + 1) for i, p in enumerate((10, 50, 90))}}, index=day
+    )
+    dem = pd.DataFrame(
+        {"issue_time": it, **{f"{c}_p{p}": float(p) for c in ("critical", "flex") for p in (10, 50, 90)}}, index=w
+    )
     df = O.from_backtest(solar, dem, it, pv_kwp=300)
     assert list(df.columns) == O.SCHEMA and len(df) == 48
     assert (df["timestamp"] > it).all() and df["timestamp"].iloc[-1] == it + pd.Timedelta(hours=48)
